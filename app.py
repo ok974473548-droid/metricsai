@@ -200,8 +200,11 @@ def rfm_analysis(df):
         return None
     df['date'] = pd.to_datetime(df['date'])
     snapshot_date = df['date'].max() + timedelta(days=1)
-    rfm = df.groupby('user_id').agg({'date': lambda x: (snapshot_date - x.max()).days, 'user_id': 'count', 'revenue': 'sum'}).reset_index()
-    rfm.columns = ['user_id', 'recency', 'frequency', 'monetary']
+    rfm = df.groupby('user_id', as_index=False).agg(
+        recency=('date', lambda x: (snapshot_date - x.max()).days),
+        monetary=('revenue', 'sum'),
+        frequency=('user_id', 'size')
+    )
     rfm['R'] = pd.qcut(rfm['recency'], 5, labels=[5,4,3,2,1])
     rfm['F'] = pd.qcut(rfm['frequency'].rank(method='first'), 5, labels=[1,2,3,4,5])
     rfm['M'] = pd.qcut(rfm['monetary'], 5, labels=[1,2,3,4,5])
