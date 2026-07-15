@@ -1,7 +1,0 @@
-streamlit
-pandas
-numpy
-plotly
-openai
-openpyxl
-fpdf2
