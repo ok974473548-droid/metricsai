@@ -5,7 +5,7 @@
     <p class="text-sm" style="color: var(--text-secondary);">Подключите любой источник — данные загрузятся напрямую</p>
 </div>
 
-<div class="grid grid-cols-2 gap-4 mb-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
 
     <!-- CSV / Excel Upload -->
     <div class="glass-card animate-in delay-1">
@@ -98,7 +98,7 @@
     </div>
 
     <!-- Demo Data -->
-    <div class="glass-card animate-in delay-5" style="grid-column: span 2;">
+    <div class="glass-card animate-in delay-5" style="grid-column: span 1 / span 2;">
         <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
                 <div class="text-2xl">🎲</div>
@@ -118,11 +118,11 @@
 <!-- API Documentation -->
 <div class="glass-card animate-in delay-6">
     <div class="section-title">📚 API Documentation</div>
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
             <div class="text-sm font-semibold text-white mb-2">GET /api/v1/health</div>
             <div class="text-xs font-mono p-3 rounded-lg" style="background: rgba(0,0,0,0.3); color: var(--text-secondary);">
-                {"status": "ok", "version": "3.0"}
+                {"status": "ok", "version": "3.1"}
             </div>
         </div>
         <div>
