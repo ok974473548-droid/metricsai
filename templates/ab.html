@@ -1,38 +1,52 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-1">A/B калькулятор</h1>
-    <p class="text-gray-500">Статистическая значимость разницы конверсий</p>
+<div class="mb-8 animate-in">
+    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">A/B калькулятор</h1>
+    <p class="text-sm" style="color: var(--text-secondary);">Статистическая значимость разницы конверсий</p>
 </div>
-<hr class="border-white/5 mb-6">
 
-<div class="glass-card">
+<div class="glass-card animate-in delay-1">
     <form hx-post="/ab-calculate" hx-target="#ab-result" class="space-y-6">
         <div class="grid grid-cols-2 gap-8">
-            <div>
-                <h3 class="text-lg font-bold text-white mb-4">🅰️ Вариант A</h3>
-                <div class="space-y-3">
-                    <input type="number" name="conv_a" value="120" placeholder="Конверсии A" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white">
-                    <input type="number" name="n_a" value="1000" placeholder="Посетители A" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white">
+            <div class="glass-card" style="padding: 1.5rem;">
+                <div class="section-title">🅰️ Вариант A (Control)</div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm mb-2" style="color: var(--text-secondary);">Конверсии</label>
+                        <input type="number" name="conv_a" value="120" class="w-full">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-2" style="color: var(--text-secondary);">Посетители</label>
+                        <input type="number" name="n_a" value="1000" class="w-full">
+                    </div>
                 </div>
             </div>
-            <div>
-                <h3 class="text-lg font-bold text-white mb-4">🅱️ Вариант B</h3>
-                <div class="space-y-3">
-                    <input type="number" name="conv_b" value="150" placeholder="Конверсии B" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white">
-                    <input type="number" name="n_b" value="1000" placeholder="Посетители B" class="w-full bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white">
+            <div class="glass-card" style="padding: 1.5rem;">
+                <div class="section-title">🅱️ Вариант B (Test)</div>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm mb-2" style="color: var(--text-secondary);">Конверсии</label>
+                        <input type="number" name="conv_b" value="150" class="w-full">
+                    </div>
+                    <div>
+                        <label class="block text-sm mb-2" style="color: var(--text-secondary);">Посетители</label>
+                        <input type="number" name="n_b" value="1000" class="w-full">
+                    </div>
                 </div>
             </div>
         </div>
         <div>
-            <select name="confidence" class="bg-white/5 border border-white/10 rounded-lg px-4 py-3 text-white">
-                <option value="0.95">95% доверие</option>
-                <option value="0.99">99% доверие</option>
-                <option value="0.90">90% доверие</option>
+            <label class="block text-sm mb-2" style="color: var(--text-secondary);">Уровень доверия</label>
+            <select name="confidence" class="w-full" style="max-width: 200px;">
+                <option value="0.95">95%</option>
+                <option value="0.99">99%</option>
+                <option value="0.90">90%</option>
             </select>
         </div>
-        <button type="submit" class="btn-primary">🚀 Рассчитать</button>
+        <button type="submit" class="btn-primary">
+            <span style="margin-right: 0.5rem;">🚀</span>Рассчитать
+        </button>
     </form>
-    <div id="ab-result"></div>
+    <div id="ab-result" class="mt-6"></div>
 </div>
 {% endblock %}
