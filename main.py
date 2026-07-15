@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 import json
 import sqlite3
 import hashlib
@@ -28,6 +29,7 @@ def init_db():
     c = conn.cursor()
     c.execute("CREATE TABLE IF NOT EXISTS shared_dashboards (id TEXT PRIMARY KEY, created_at TEXT, data_json TEXT, white_label TEXT)")
     c.execute("CREATE TABLE IF NOT EXISTS uploads (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, source_type TEXT, upload_date TEXT, rows INTEGER, cols INTEGER)")
+    c.execute("CREATE TABLE IF NOT EXISTS custom_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, config_json TEXT, created_at TEXT)")
     conn.commit()
     conn.close()
 
@@ -48,6 +50,7 @@ def generate_sample_data():
         "channel": np.random.choice(channels, n, p=[0.25, 0.15, 0.20, 0.15, 0.10, 0.10, 0.05]),
         "event_type": np.random.choice(events, n, p=[0.35, 0.20, 0.20, 0.10, 0.15]),
         "marketing_cost": np.random.choice([0, 0, 0, 30, 50, 80, 120, 200], n),
+        "subscription": np.random.choice(["monthly", "annual", "none"], n, p=[0.15, 0.05, 0.80]),
     })
     return df.sort_values("date").reset_index(drop=True)
 
@@ -101,12 +104,12 @@ def build_charts(df, metrics):
         monthly_df = pd.DataFrame(metrics["monthly_trend"])
         fig = px.line(monthly_df, x="month", y="revenue", template="plotly_dark")
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False)
-        fig.update_traces(line_color="#F8FAFC")
+        fig.update_traces(line_color="#F8FAFC", line_width=3)
         charts["revenue"] = fig.to_html(full_html=False, include_plotlyjs="cdn")
 
         fig2 = px.bar(monthly_df, x="month", y="arpu", template="plotly_dark")
         fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False)
-        fig2.update_traces(marker_color="#94A3B8")
+        fig2.update_traces(marker_color="#94A3B8", marker_opacity=0.7)
         charts["arpu"] = fig2.to_html(full_html=False, include_plotlyjs=False)
 
     if metrics.get("funnel"):
@@ -119,20 +122,88 @@ def build_charts(df, metrics):
         channel_df = df.groupby("channel")["revenue"].sum().reset_index().sort_values("revenue", ascending=True)
         fig = px.bar(channel_df, x="revenue", y="channel", orientation="h", template="plotly_dark")
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
-        fig.update_traces(marker_color="#F8FAFC")
+        fig.update_traces(marker_color="#F8FAFC", marker_opacity=0.8)
         charts["channel"] = fig.to_html(full_html=False, include_plotlyjs=False)
 
     return charts
 
+# ==================== REVENUE ANALYTICS ====================
+def calculate_revenue_metrics(df):
+    rev = {}
+    df["date"] = pd.to_datetime(df["date"])
+    df["month"] = df["date"].dt.to_period("M")
+    df["year"] = df["date"].dt.year
+
+    # MRR/ARR
+    monthly_rev = df.groupby("month")["revenue"].sum()
+    rev["mrr"] = float(monthly_rev.iloc[-1]) if len(monthly_rev) > 0 else 0
+    rev["arr"] = rev["mrr"] * 12
+    rev["mrr_growth"] = float((monthly_rev.iloc[-1] - monthly_rev.iloc[-2]) / monthly_rev.iloc[-2] * 100) if len(monthly_rev) >= 2 and monthly_rev.iloc[-2] > 0 else 0
+
+    # Revenue waterfall
+    rev["waterfall"] = monthly_rev.reset_index().to_dict("records")
+
+    # Cohort revenue
+    df["order_month"] = df["date"].dt.to_period("M")
+    df["cohort"] = df.groupby("user_id")["order_month"].transform("min")
+    cohort_rev = df.groupby(["cohort", "order_month"])["revenue"].sum().reset_index()
+    cohort_rev["period"] = (cohort_rev["order_month"] - cohort_rev["cohort"]).apply(lambda x: x.n)
+    cohort_table = cohort_rev.pivot(index="cohort", columns="period", values="revenue").fillna(0)
+    rev["cohort_revenue"] = cohort_table.reset_index().to_dict("records")
+
+    # LTV prediction
+    user_ltv = df.groupby("user_id")["revenue"].sum().sort_values(ascending=False)
+    rev["ltv_curve"] = [{"percentile": i, "ltv": float(user_ltv.quantile(i/100))} for i in range(0, 101, 5)]
+
+    # Subscription breakdown
+    if "subscription" in df.columns:
+        sub_breakdown = df.groupby("subscription")["revenue"].sum().reset_index().to_dict("records")
+        rev["subscription"] = sub_breakdown
+
+    return rev
+
+def build_revenue_charts(df, rev_metrics):
+    charts = {}
+
+    # MRR Trend
+    if rev_metrics.get("waterfall"):
+        water_df = pd.DataFrame(rev_metrics["waterfall"])
+        fig = px.area(water_df, x="month", y="revenue", template="plotly_dark", color_discrete_sequence=["#34D399"])
+        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False)
+        charts["mrr_trend"] = fig.to_html(full_html=False, include_plotlyjs="cdn")
+
+    # LTV Curve
+    if rev_metrics.get("ltv_curve"):
+        ltv_df = pd.DataFrame(rev_metrics["ltv_curve"])
+        fig = px.line(ltv_df, x="percentile", y="ltv", template="plotly_dark")
+        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False)
+        fig.update_traces(line_color="#60A5FA", fill="tozeroy", fillcolor="rgba(96,165,250,0.1)")
+        charts["ltv_curve"] = fig.to_html(full_html=False, include_plotlyjs=False)
+
+    # Subscription pie
+    if rev_metrics.get("subscription"):
+        sub_df = pd.DataFrame(rev_metrics["subscription"])
+        fig = px.pie(sub_df, values="revenue", names="subscription", template="plotly_dark", hole=0.5)
+        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
+        fig.update_traces(marker_colors=["#34D399", "#60A5FA", "#94A3B8"])
+        charts["subscription"] = fig.to_html(full_html=False, include_plotlyjs=False)
+
+    return charts
+
 # ==================== IN-MEMORY STORE ====================
-# For demo, we store data in memory. In production, use Redis/DB.
 _session_data = {}
 
 def get_session_data(session_id: str):
     return _session_data.get(session_id)
 
 def set_session_data(session_id: str, df: pd.DataFrame, white_label: dict):
-    _session_data[session_id] = {"df": df, "white_label": white_label, "metrics": calculate_metrics(df), "charts": build_charts(df, calculate_metrics(df))}
+    metrics = calculate_metrics(df)
+    rev_metrics = calculate_revenue_metrics(df)
+    _session_data[session_id] = {
+        "df": df, "white_label": white_label,
+        "metrics": metrics, "charts": build_charts(df, metrics),
+        "rev_metrics": rev_metrics, "rev_charts": build_revenue_charts(df, rev_metrics)
+    }
 
 # ==================== ROUTES ====================
 @app.get("/", response_class=HTMLResponse)
@@ -143,16 +214,10 @@ def index(request: Request):
     metrics = data["metrics"] if data else {}
     charts = data["charts"] if data else {}
     white_label = data["white_label"] if data else {"company_name": "MetricsAI", "logo_text": "MetricsAI"}
-    share_url = ""
 
     response = templates.TemplateResponse("dashboard.html", {
-        "request": request,
-        "has_data": has_data,
-        "metrics": metrics,
-        "charts": charts,
-        "white_label": white_label,
-        "share_url": share_url,
-        "page": "dashboard",
+        "request": request, "has_data": has_data, "metrics": metrics,
+        "charts": charts, "white_label": white_label, "page": "dashboard",
     })
     response.set_cookie("session_id", session_id)
     return response
@@ -161,7 +226,7 @@ def index(request: Request):
 def load_sample(request: Request):
     session_id = request.cookies.get("session_id")
     if not session_id:
-        return HTMLResponse("<div class='alert alert-error'>No session</div>")
+        return HTMLResponse("<div class='alert'>No session</div>")
     df = generate_sample_data()
     set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
     return HTMLResponse("", status_code=200, headers={"HX-Redirect": "/"})
@@ -172,7 +237,6 @@ def share_dashboard(request: Request):
     data = get_session_data(session_id)
     if not data:
         return JSONResponse({"error": "No data"}, status_code=400)
-
     dashboard_id = hashlib.sha256(str(datetime.now().timestamp()).encode()).hexdigest()[:12]
     conn = get_db()
     c = conn.cursor()
@@ -180,7 +244,6 @@ def share_dashboard(request: Request):
               (dashboard_id, datetime.now().isoformat(), data["df"].to_json(), json.dumps(data["white_label"])))
     conn.commit()
     conn.close()
-
     return JSONResponse({"url": f"/dashboard/{dashboard_id}"})
 
 @app.get("/dashboard/{dashboard_id}", response_class=HTMLResponse)
@@ -190,20 +253,14 @@ def public_dashboard(request: Request, dashboard_id: str):
     c.execute("SELECT data_json, white_label FROM shared_dashboards WHERE id = ?", (dashboard_id,))
     row = c.fetchone()
     conn.close()
-
     if not row:
         return templates.TemplateResponse("error.html", {"request": request, "message": "Dashboard not found"})
-
     df = pd.read_json(StringIO(row["data_json"]))
     white_label = json.loads(row["white_label"])
     metrics = calculate_metrics(df)
     charts = build_charts(df, metrics)
-
     return templates.TemplateResponse("public.html", {
-        "request": request,
-        "metrics": metrics,
-        "charts": charts,
-        "white_label": white_label,
+        "request": request, "metrics": metrics, "charts": charts, "white_label": white_label,
     })
 
 @app.get("/funnel", response_class=HTMLResponse)
@@ -213,13 +270,9 @@ def funnel_page(request: Request):
     has_data = data is not None
     charts = data["charts"] if data else {}
     white_label = data["white_label"] if data else {"company_name": "MetricsAI", "logo_text": "MetricsAI"}
-
     return templates.TemplateResponse("funnel.html", {
-        "request": request,
-        "has_data": has_data,
-        "charts": charts,
-        "white_label": white_label,
-        "page": "funnel",
+        "request": request, "has_data": has_data, "charts": charts,
+        "white_label": white_label, "page": "funnel",
     })
 
 @app.get("/ai", response_class=HTMLResponse)
@@ -228,13 +281,8 @@ def ai_page(request: Request):
     data = get_session_data(session_id)
     has_data = data is not None
     white_label = data["white_label"] if data else {"company_name": "MetricsAI", "logo_text": "MetricsAI"}
-
     return templates.TemplateResponse("ai.html", {
-        "request": request,
-        "has_data": has_data,
-        "white_label": white_label,
-        "page": "ai",
-        "insights": "",
+        "request": request, "has_data": has_data, "white_label": white_label, "page": "ai", "insights": "",
     })
 
 @app.post("/ai-generate")
@@ -242,19 +290,9 @@ def ai_generate(request: Request):
     session_id = request.cookies.get("session_id")
     data = get_session_data(session_id)
     if not data:
-        return HTMLResponse("<div class='alert alert-error'>Сначала загрузите данные</div>")
-
+        return HTMLResponse("<div class='glass-card text-red-400 p-4'>Сначала загрузите данные</div>")
     m = data["metrics"]
-    insights = f"""<div class='ai-insight'>
-<div class='ai-header'>🧠 AI Product Analyst</div>
-<div style='color: #E2E8F0; line-height: 1.7;'>
-1. <b>LTV/CAC ratio ({m.get('ltv_cac_ratio', 0):.1f}x)</b> — {'ниже нормы' if m.get('ltv_cac_ratio', 0) < 3 else 'в норме'}. При healthy ratio > 3x можно масштабировать маркетинг.<br><br>
-2. <b>ARPU {m.get('arpu', 0):,.0f} ₽</b> — анализируйте ARPU по каналам. Возможно, некоторые каналы приносят пользователей с низкой монетизацией.<br><br>
-3. <b>Выручка {m.get('total_revenue', 0):,.0f} ₽</b> — отслеживайте динамику ежемесячно. Рекомендуем настроить alerts на падение > 15%.<br><br>
-4. <b>Сегментация</b> — проведите RFM-анализ для персонализации маркетинговых кампаний.
-</div>
-</div>"""
-
+    insights = f"""<div class='ai-insight'><div class='ai-header'>🧠 AI Product Analyst</div><div style='color: #E2E8F0; line-height: 1.7;'><b>1. LTV/CAC ratio ({m.get('ltv_cac_ratio', 0):.1f}x)</b> — {'ниже нормы' if m.get('ltv_cac_ratio', 0) < 3 else 'в норме'}. При healthy ratio > 3x можно масштабировать маркетинг.<br><br><b>2. ARPU {m.get('arpu', 0):,.0f} ₽</b> — анализируйте ARPU по каналам. Возможно, некоторые каналы приносят пользователей с низкой монетизацией.<br><br><b>3. Выручка {m.get('total_revenue', 0):,.0f} ₽</b> — отслеживайте динамику ежемесячно. Рекомендуем настроить alerts на падение > 15%.<br><br><b>4. Сегментация</b> — проведите RFM-анализ для персонализации маркетинговых кампаний.</div></div>"""
     return HTMLResponse(insights)
 
 @app.get("/ab", response_class=HTMLResponse)
@@ -262,11 +300,8 @@ def ab_page(request: Request):
     session_id = request.cookies.get("session_id")
     data = get_session_data(session_id)
     white_label = data["white_label"] if data else {"company_name": "MetricsAI", "logo_text": "MetricsAI"}
-
     return templates.TemplateResponse("ab.html", {
-        "request": request,
-        "white_label": white_label,
-        "page": "ab",
+        "request": request, "white_label": white_label, "page": "ab",
     })
 
 @app.post("/ab-calculate")
@@ -278,14 +313,68 @@ def ab_calculate(request: Request, conv_a: int = Form(120), n_a: int = Form(1000
     z_critical = 1.96 if confidence == 0.95 else 2.58
     is_significant = abs(z) > z_critical
     uplift = ((p_b - p_a) / p_a * 100) if p_a > 0 else 0
-
-    html = f"""
-<div class="grid grid-cols-4 gap-4 mt-6">
-    <div class="metric-container"><div class="metric-label">Конверсия A</div><div class="metric-value">{p_a:.2%}</div></div>
-    <div class="metric-container"><div class="metric-label">Конверсия B</div><div class="metric-value">{p_b:.2%}</div></div>
-    <div class="metric-container"><div class="metric-label">Uplift</div><div class="metric-value" style="color: {'#34D399' if uplift > 0 else '#F87171'}">{uplift:+.1f}%</div></div>
-    <div class="metric-container"><div class="metric-label">Значимость</div><div class="metric-value" style="color: {'#34D399' if is_significant else '#F87171'}">{'✅ Да' if is_significant else '❌ Нет'}</div></div>
-</div>
-<div class="glass-card mt-4"><div style="color: #94A3B8; font-size: 0.9rem;">Z-score: <b>{z:.3f}</b> | Критическое: ±{z_critical}</div></div>
-"""
+    html = f"""<div class="grid grid-cols-4 gap-4 mt-6"><div class="metric-container"><div class="metric-label">Конверсия A</div><div class="metric-value">{p_a:.2%}</div></div><div class="metric-container"><div class="metric-label">Конверсия B</div><div class="metric-value">{p_b:.2%}</div></div><div class="metric-container"><div class="metric-label">Uplift</div><div class="metric-value" style="color:{'#34D399' if uplift>0 else '#F87171'}">{uplift:+.1f}%</div></div><div class="metric-container"><div class="metric-label">Значимость</div><div class="metric-value" style="color:{'#34D399' if is_significant else '#F87171'}">{'✅ Да' if is_significant else '❌ Нет'}</div></div></div><div class="glass-card mt-4"><div style="color:#94A3B8;font-size:0.9rem">Z-score: <b>{z:.3f}</b> | Критическое: ±{z_critical}</div></div>"""
     return HTMLResponse(html)
+
+@app.get("/revenue", response_class=HTMLResponse)
+def revenue_page(request: Request):
+    session_id = request.cookies.get("session_id")
+    data = get_session_data(session_id)
+    has_data = data is not None
+    rev_metrics = data["rev_metrics"] if data else {}
+    rev_charts = data["rev_charts"] if data else {}
+    white_label = data["white_label"] if data else {"company_name": "MetricsAI", "logo_text": "MetricsAI"}
+    return templates.TemplateResponse("revenue.html", {
+        "request": request, "has_data": has_data, "rev_metrics": rev_metrics,
+        "rev_charts": rev_charts, "white_label": white_label, "page": "revenue",
+    })
+
+@app.get("/builder", response_class=HTMLResponse)
+def builder_page(request: Request):
+    session_id = request.cookies.get("session_id")
+    data = get_session_data(session_id)
+    has_data = data is not None
+    white_label = data["white_label"] if data else {"company_name": "MetricsAI", "logo_text": "MetricsAI"}
+    return templates.TemplateResponse("builder.html", {
+        "request": request, "has_data": has_data, "white_label": white_label, "page": "builder",
+    })
+
+@app.post("/builder-generate")
+def builder_generate(request: Request, metric: str = Form("revenue"), period: str = Form("monthly"), chart_type: str = Form("line"), layout: str = Form("standard")):
+    session_id = request.cookies.get("session_id")
+    data = get_session_data(session_id)
+    if not data:
+        return HTMLResponse("<div class='glass-card text-red-400 p-4'>Сначала загрузите данные</div>")
+    df = data["df"]
+    df["date"] = pd.to_datetime(df["date"])
+
+    if period == "monthly":
+        df["period"] = df["date"].dt.to_period("M").astype(str)
+    elif period == "weekly":
+        df["period"] = df["date"].dt.to_period("W").astype(str)
+    else:
+        df["period"] = df["date"].dt.to_period("D").astype(str)
+
+    grouped = df.groupby("period")[metric].sum().reset_index()
+
+    if chart_type == "line":
+        fig = px.line(grouped, x="period", y=metric, template="plotly_dark")
+        fig.update_traces(line_color="#F8FAFC", line_width=3)
+    elif chart_type == "bar":
+        fig = px.bar(grouped, x="period", y=metric, template="plotly_dark")
+        fig.update_traces(marker_color="#94A3B8", marker_opacity=0.7)
+    elif chart_type == "area":
+        fig = px.area(grouped, x="period", y=metric, template="plotly_dark")
+        fig.update_traces(line_color="#34D399", fillcolor="rgba(52,211,153,0.1)")
+    else:
+        fig = px.scatter(grouped, x="period", y=metric, template="plotly_dark")
+        fig.update_traces(marker_color="#60A5FA")
+
+    fig.update_layout(
+        paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+        font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False,
+        title=dict(text=f"{metric.upper()} — {period}", font_color="#F8FAFC", font_size=14)
+    )
+    chart_html = fig.to_html(full_html=False, include_plotlyjs="cdn")
+
+    return HTMLResponse(f"""<div class="glass-card"><h3 class="text-lg font-bold text-white mb-4">📊 {metric.upper()} ({period})</h3>{chart_html}</div>""")
