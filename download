@@ -1,0 +1,7 @@
+*.db
+*.py[cod]
+__pycache__/
+.venv/
+venv/
+.web/
+*.egg-info/
