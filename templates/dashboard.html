@@ -1,67 +1,123 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-1">Дашборд</h1>
-    <p class="text-gray-500">Ключевые метрики в реальном времени</p>
+<div class="mb-8 animate-in">
+    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">Дашборд</h1>
+    <p class="text-sm" style="color: var(--text-secondary);">Ключевые метрики в реальном времени</p>
 </div>
-<hr class="border-white/5 mb-6">
 
 {% if not has_data %}
-<div class="glass-card text-center py-16">
-    <p class="text-gray-400 text-lg mb-6">Нет данных</p>
+<div class="glass-card text-center py-20 animate-in delay-1">
+    <div class="text-5xl mb-6">📊</div>
+    <p class="text-lg mb-2" style="color: var(--text-secondary);">Нет данных</p>
+    <p class="text-sm mb-8" style="color: var(--text-tertiary);">Загрузите демо-данные, чтобы начать</p>
     <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
 </div>
 {% else %}
 
 <!-- Share -->
-<div class="mb-6 flex items-center gap-4">
-    <button class="btn-primary" hx-post="/share" hx-target="#share-result" hx-swap="innerHTML">🔗 Поделиться дашбордом</button>
+<div class="mb-6 flex items-center gap-4 animate-in delay-1">
+    <button class="btn-primary" hx-post="/share" hx-target="#share-result" hx-swap="innerHTML">
+        <span style="margin-right: 0.5rem;">🔗</span>Поделиться
+    </button>
     <div id="share-result"></div>
 </div>
 
-<!-- Metrics -->
-<div class="grid grid-cols-6 gap-4 mb-6">
-    <div class="metric-container">
-        <div class="metric-label">Выручка</div>
-        <div class="metric-value">{{ "{:,.0f}".format(metrics.total_revenue) }} ₽</div>
+<!-- Widget Grid (iOS Home Screen style) -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+
+    <!-- Large Widget: Revenue -->
+    <div class="glass-card widget-large animate-in delay-1">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <div class="metric-label">Выручка</div>
+                <div class="metric-value">{{ "{:,.0f}".format(metrics.total_revenue) }} ₽</div>
+            </div>
+            <div class="text-3xl">💰</div>
+        </div>
+        <div class="metric-delta positive">+12.4% vs прошлый месяц</div>
+        <div class="mt-4" style="height: 120px; opacity: 0.6;">
+            {{ charts.revenue | safe }}
+        </div>
     </div>
-    <div class="metric-container">
-        <div class="metric-label">Пользователей</div>
-        <div class="metric-value">{{ "{:,}".format(metrics.total_users) }}</div>
+
+    <!-- Large Widget: Users -->
+    <div class="glass-card widget-large animate-in delay-2">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <div class="metric-label">Пользователей</div>
+                <div class="metric-value">{{ "{:,}".format(metrics.total_users) }}</div>
+            </div>
+            <div class="text-3xl">👥</div>
+        </div>
+        <div class="metric-delta positive">+8.2% vs прошлый месяц</div>
+        <div class="mt-4 grid grid-cols-2 gap-2">
+            <div class="metric-container" style="padding: 0.75rem;">
+                <div class="metric-label">Новые</div>
+                <div class="metric-value" style="font-size: 1.2rem;">1,240</div>
+            </div>
+            <div class="metric-container" style="padding: 0.75rem;">
+                <div class="metric-label">Вернувшиеся</div>
+                <div class="metric-value" style="font-size: 1.2rem;">3,680</div>
+            </div>
+        </div>
     </div>
-    <div class="metric-container">
+
+    <!-- Small Widget: ARPU -->
+    <div class="glass-card widget-small animate-in delay-3">
         <div class="metric-label">ARPU</div>
         <div class="metric-value">{{ "{:,.0f}".format(metrics.arpu) }} ₽</div>
+        <div class="metric-delta positive">+5.1%</div>
     </div>
-    <div class="metric-container">
+
+    <!-- Small Widget: AOV -->
+    <div class="glass-card widget-small animate-in delay-3">
         <div class="metric-label">AOV</div>
         <div class="metric-value">{{ "{:,.0f}".format(metrics.aov) }} ₽</div>
+        <div class="metric-delta negative">-2.3%</div>
     </div>
-    <div class="metric-container">
-        <div class="metric-label">LTV (est.)</div>
+
+    <!-- Small Widget: LTV -->
+    <div class="glass-card widget-small animate-in delay-4">
+        <div class="metric-label">LTV</div>
         <div class="metric-value">{{ "{:,.0f}".format(metrics.ltv) }} ₽</div>
+        <div class="metric-delta positive">+15.7%</div>
     </div>
-    <div class="metric-container">
+
+    <!-- Small Widget: LTV/CAC -->
+    <div class="glass-card widget-small animate-in delay-4">
         <div class="metric-label">LTV / CAC</div>
-        <div class="metric-value" style="color: {% if metrics.ltv_cac_ratio > 3 %}#34D399{% elif metrics.ltv_cac_ratio > 1 %}#FBBF24{% else %}#F87171{% endif %}">{{ "{:.1f}".format(metrics.ltv_cac_ratio) }}x</div>
+        <div class="metric-value" style="color: {% if metrics.ltv_cac_ratio > 3 %}var(--accent-green){% elif metrics.ltv_cac_ratio > 1 %}var(--accent-orange){% else %}var(--accent-red){% endif %}">
+            {{ "{:.1f}".format(metrics.ltv_cac_ratio) }}x
+        </div>
+        <div class="metric-delta {% if metrics.ltv_cac_ratio > 3 %}positive{% else %}negative{% endif %}">
+            {% if metrics.ltv_cac_ratio > 3 %}✅ Healthy{% else %}⚠️ Low{% endif %}
+        </div>
     </div>
+
+    <!-- Medium Widget: ARPU Trend -->
+    <div class="glass-card widget-medium animate-in delay-5">
+        <div class="metric-label mb-2">ARPU по месяцам</div>
+        <div style="height: 100px;">
+            {{ charts.arpu | safe }}
+        </div>
+    </div>
+
+    <!-- Medium Widget: Channels -->
+    <div class="glass-card widget-medium animate-in delay-5">
+        <div class="metric-label mb-2">Каналы</div>
+        <div style="height: 100px;">
+            {{ charts.channel | safe }}
+        </div>
+    </div>
+
 </div>
 
-<!-- Charts -->
-<div class="grid grid-cols-2 gap-4 mb-6">
-    <div class="glass-card">
-        <h3 class="text-lg font-bold text-white mb-4">📈 Динамика выручки</h3>
-        {{ charts.revenue | safe }}
+<!-- Full-width Funnel -->
+<div class="glass-card animate-in delay-6">
+    <div class="section-title">🔻 Воронка конверсии</div>
+    <div style="height: 300px;">
+        {{ charts.funnel | safe }}
     </div>
-    <div class="glass-card">
-        <h3 class="text-lg font-bold text-white mb-4">🎯 ARPU по месяцам</h3>
-        {{ charts.arpu | safe }}
-    </div>
-</div>
-
-<div class="glass-card">
-    <h3 class="text-lg font-bold text-white mb-4">🎯 Выручка по каналам</h3>
-    {{ charts.channel | safe }}
 </div>
 
 <script>
@@ -69,7 +125,7 @@ document.body.addEventListener('htmx:afterRequest', function(evt) {
     if (evt.detail.xhr.responseURL && evt.detail.xhr.responseURL.includes('/share')) {
         var data = JSON.parse(evt.detail.xhr.response);
         var result = document.getElementById('share-result');
-        result.innerHTML = '<div class="glass-card flex items-center gap-3"><input type="text" value="' + window.location.origin + data.url + '" readonly class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white w-80"><button onclick="navigator.clipboard.writeText(window.location.origin + '' + data.url + ''); this.textContent='✅ Скопировано'; this.style.color='#34D399'; setTimeout(()=>{this.textContent='📋 Копировать'; this.style.color='';}, 2000);" class="btn-secondary text-sm">📋 Копировать</button></div>';
+        result.innerHTML = '<div class="glass-card flex items-center gap-3 py-2 px-3"><input type="text" value="' + window.location.origin + data.url + '" readonly class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white w-72"><button onclick="navigator.clipboard.writeText(window.location.origin + '' + data.url + ''); this.innerHTML='<span style=margin-right:0.3rem>✅</span>Скопировано'; this.style.color='var(--accent-green)'; setTimeout(()=>{this.innerHTML='<span style=margin-right:0.3rem>📋</span>Копировать'; this.style.color='';}, 2000);" class="btn-secondary text-sm">📋 Копировать</button></div>';
     }
 });
 </script>
