@@ -9,9 +9,16 @@ from openai import OpenAI
 from operator import attrgetter
 from io import BytesIO
 import json
+import hashlib
+import urllib.parse
 
 st.set_page_config(page_title="MetricsAI v2.0", page_icon="📊", layout="wide", initial_sidebar_state="expanded")
 
+# ==================== QUERY PARAMS (SHARED DASHBOARDS) ====================
+query_params = st.query_params
+dashboard_id_from_url = query_params.get("dashboard_id", None)
+
+# ==================== CUSTOM CSS ====================
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
@@ -49,6 +56,13 @@ hr { border: none; height: 1px; background: rgba(255,255,255,0.06); margin: 1.5r
 .subtitle { color: #64748B; font-size: 0.95rem; font-weight: 400; }
 .badge { display: inline-block; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); border-radius: 20px; padding: 0.2rem 0.6rem; font-size: 0.7rem; font-weight: 600; color: #94A3B8; text-transform: uppercase; letter-spacing: 0.06em; }
 .section-title { font-size: 1.1rem; font-weight: 700; color: #F8FAFC; margin-bottom: 1rem; letter-spacing: -0.01em; }
+/* Public banner */
+.public-banner { background: rgba(52, 211, 153, 0.08); border: 1px solid rgba(52, 211, 153, 0.2); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+.public-banner-text { color: #34D399; font-weight: 600; font-size: 0.9rem; }
+/* Copy link button */
+.copy-btn { background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 0.5rem 1rem; color: #E2E8F0; font-size: 0.8rem; font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.2s; }
+.copy-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.2); }
+.copy-btn.copied { background: rgba(52, 211, 153, 0.1); border-color: rgba(52, 211, 153, 0.3); color: #34D399; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -56,12 +70,18 @@ if 'data' not in st.session_state:
     st.session_state.data = None
 if 'white_label' not in st.session_state:
     st.session_state.white_label = {'company_name': 'MetricsAI', 'logo_text': 'MetricsAI'}
+if 'is_public' not in st.session_state:
+    st.session_state.is_public = False
+if 'dashboard_id' not in st.session_state:
+    st.session_state.dashboard_id = None
 
+# ==================== DB INIT ====================
 def init_db():
     conn = sqlite3.connect('metricsai.db')
     c = conn.cursor()
     c.execute('CREATE TABLE IF NOT EXISTS uploads (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, source_type TEXT, upload_date TEXT, rows INTEGER, cols INTEGER, metrics_summary TEXT)')
     c.execute('CREATE TABLE IF NOT EXISTS reports (id INTEGER PRIMARY KEY AUTOINCREMENT, report_name TEXT, created_date TEXT, report_data TEXT)')
+    c.execute('CREATE TABLE IF NOT EXISTS shared_dashboards (id TEXT PRIMARY KEY, created_at TEXT, config_json TEXT, data_csv TEXT, white_label_json TEXT)')
     conn.commit()
     conn.close()
 init_db()
@@ -73,6 +93,44 @@ def save_upload(filename, source_type, rows, cols, summary):
     conn.commit()
     conn.close()
 
+# ==================== SHARED DASHBOARD FUNCTIONS ====================
+def generate_dashboard_id():
+    return hashlib.sha256(str(datetime.now().timestamp()).encode()).hexdigest()[:12]
+
+def share_dashboard(df, white_label):
+    dashboard_id = generate_dashboard_id()
+    conn = sqlite3.connect('metricsai.db')
+    c = conn.cursor()
+    csv_data = df.to_csv(index=False)
+    config = {'created_at': datetime.now().isoformat(), 'rows': len(df), 'cols': len(df.columns)}
+    c.execute('INSERT INTO shared_dashboards (id, created_at, config_json, data_csv, white_label_json) VALUES (?, ?, ?, ?, ?)',
+              (dashboard_id, datetime.now().isoformat(), json.dumps(config), csv_data, json.dumps(white_label)))
+    conn.commit()
+    conn.close()
+    return dashboard_id
+
+def load_shared_dashboard(dashboard_id):
+    conn = sqlite3.connect('metricsai.db')
+    c = conn.cursor()
+    c.execute('SELECT data_csv, white_label_json FROM shared_dashboards WHERE id = ?', (dashboard_id,))
+    row = c.fetchone()
+    conn.close()
+    if row:
+        df = pd.read_csv(BytesIO(row[0].encode()))
+        white_label = json.loads(row[1])
+        return df, white_label
+    return None, None
+
+# ==================== AUTO-LOAD FROM SHARED LINK ====================
+if dashboard_id_from_url and not st.session_state.data:
+    df_loaded, wl_loaded = load_shared_dashboard(dashboard_id_from_url)
+    if df_loaded is not None:
+        st.session_state.data = df_loaded
+        st.session_state.white_label = wl_loaded
+        st.session_state.is_public = True
+        st.session_state.dashboard_id = dashboard_id_from_url
+
+# ==================== AI CLIENT ====================
 @st.cache_resource
 def get_ai_client():
     try:
@@ -274,78 +332,88 @@ def create_pdf_report(metrics, df, rfm_df=None):
 # ==================== SIDEBAR ====================
 with st.sidebar:
     st.markdown(f'<div style="font-size: 1.4rem; font-weight: 800; color: #F8FAFC; letter-spacing: -0.03em; margin-bottom: 1.5rem;">{st.session_state.white_label["logo_text"]}</div>', unsafe_allow_html=True)
+
+    if st.session_state.is_public:
+        st.markdown('<div class="public-banner"><span style="font-size:1.2rem">👁️</span><div><div class="public-banner-text">Public Dashboard</div><div style="color:#64748B;font-size:0.75rem">View-only mode</div></div></div>', unsafe_allow_html=True)
+
     page = st.radio("Навигация", ["📥 Источники данных", "📊 Дашборд", "📈 Тренды и сравнение", "🔻 Воронка", "👥 Когорты", "🎯 RFM-анализ", "⚖️ A/B калькулятор", "🤖 AI-инсайты", "📄 Экспорт"], label_visibility="collapsed")
     st.markdown("<hr>", unsafe_allow_html=True)
     with st.expander("⚙️ White-label"):
-        st.session_state.white_label['company_name'] = st.text_input("Company Name", st.session_state.white_label['company_name'])
-        st.session_state.white_label['logo_text'] = st.text_input("Logo Text", st.session_state.white_label['logo_text'])
+        if not st.session_state.is_public:
+            st.session_state.white_label['company_name'] = st.text_input("Company Name", st.session_state.white_label['company_name'])
+            st.session_state.white_label['logo_text'] = st.text_input("Logo Text", st.session_state.white_label['logo_text'])
+        else:
+            st.markdown(f"<div style='color:#64748B;font-size:0.8rem'>Company: <b>{st.session_state.white_label['company_name']}</b></div>", unsafe_allow_html=True)
     st.markdown("<div style='position: fixed; bottom: 1rem; left: 1rem; color: #475569; font-size: 0.7rem;'>MetricsAI v2.0<br>Built for HSE FCS</div>", unsafe_allow_html=True)
 
 # ==================== PAGE: DATA SOURCES ====================
 if page == "📥 Источники данных":
-    st.markdown(f'<div class="title-gradient">{st.session_state.white_label["company_name"]}</div>', unsafe_allow_html=True)
-    st.markdown('<div class="subtitle">Загрузите данные из любого источника</div>', unsafe_allow_html=True)
-    st.markdown("<hr>", unsafe_allow_html=True)
-    source_tabs = st.tabs(["📁 CSV / Excel", "🔗 Google Sheets", "📝 JSON", "✏️ Ручной ввод", "🎲 Демо-данные"])
-    with source_tabs[0]:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        uploaded_file = st.file_uploader("Загрузите CSV или Excel", type=['csv', 'xlsx', 'xls'])
-        if uploaded_file is not None:
-            if uploaded_file.name.endswith('.csv'):
-                df = load_csv(uploaded_file); source = "CSV"
-            else:
-                df = load_excel(uploaded_file); source = "Excel"
-            st.session_state.data = df
-            save_upload(uploaded_file.name, source, len(df), len(df.columns), f"Loaded {len(df)} rows")
-            st.success(f"✅ Загружено {len(df):,} строк из {source}")
-            st.dataframe(df.head(10), use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    with source_tabs[1]:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        gs_url = st.text_input("URL Google Sheets (public)", placeholder="https://docs.google.com/spreadsheets/d/...")
-        if gs_url and st.button("Загрузить"):
-            df = load_google_sheets(gs_url)
-            if df is not None:
+    if st.session_state.is_public:
+        st.warning("⚠️ Это публичный дашборд. Источники данных недоступны в режиме просмотра.")
+    else:
+        st.markdown(f'<div class="title-gradient">{st.session_state.white_label["company_name"]}</div>', unsafe_allow_html=True)
+        st.markdown('<div class="subtitle">Загрузите данные из любого источника</div>', unsafe_allow_html=True)
+        st.markdown("<hr>", unsafe_allow_html=True)
+        source_tabs = st.tabs(["📁 CSV / Excel", "🔗 Google Sheets", "📝 JSON", "✏️ Ручной ввод", "🎲 Демо-данные"])
+        with source_tabs[0]:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            uploaded_file = st.file_uploader("Загрузите CSV или Excel", type=['csv', 'xlsx', 'xls'])
+            if uploaded_file is not None:
+                if uploaded_file.name.endswith('.csv'):
+                    df = load_csv(uploaded_file); source = "CSV"
+                else:
+                    df = load_excel(uploaded_file); source = "Excel"
                 st.session_state.data = df
-                save_upload("google_sheets", "Google Sheets", len(df), len(df.columns), f"Loaded {len(df)} rows")
-                st.success(f"✅ Загружено {len(df):,} строк из Google Sheets")
+                save_upload(uploaded_file.name, source, len(df), len(df.columns), f"Loaded {len(df)} rows")
+                st.success(f"✅ Загружено {len(df):,} строк из {source}")
                 st.dataframe(df.head(10), use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    with source_tabs[2]:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        json_file = st.file_uploader("Загрузите JSON", type=['json'])
-        if json_file is not None:
-            df = load_json(json_file)
-            st.session_state.data = df
-            save_upload(json_file.name, "JSON", len(df), len(df.columns), f"Loaded {len(df)} rows")
-            st.success(f"✅ Загружено {len(df):,} строк из JSON")
-            st.dataframe(df.head(10), use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-    with source_tabs[3]:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown("Введите данные в формате CSV (первая строка — заголовки):")
-        manual_data = st.text_area("Данные", height=200, placeholder="date,user_id,revenue\n2024-01-01,user_001,150.00\n...")
-        if st.button("Загрузить ручной ввод") and manual_data:
-            try:
-                df = pd.read_csv(BytesIO(manual_data.encode()))
+            st.markdown('</div>', unsafe_allow_html=True)
+        with source_tabs[1]:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            gs_url = st.text_input("URL Google Sheets (public)", placeholder="https://docs.google.com/spreadsheets/d/...")
+            if gs_url and st.button("Загрузить"):
+                df = load_google_sheets(gs_url)
+                if df is not None:
+                    st.session_state.data = df
+                    save_upload("google_sheets", "Google Sheets", len(df), len(df.columns), f"Loaded {len(df)} rows")
+                    st.success(f"✅ Загружено {len(df):,} строк из Google Sheets")
+                    st.dataframe(df.head(10), use_container_width=True, hide_index=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with source_tabs[2]:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            json_file = st.file_uploader("Загрузите JSON", type=['json'])
+            if json_file is not None:
+                df = load_json(json_file)
                 st.session_state.data = df
-                save_upload("manual_input", "Manual", len(df), len(df.columns), f"Loaded {len(df)} rows")
-                st.success(f"✅ Загружено {len(df):,} строк")
+                save_upload(json_file.name, "JSON", len(df), len(df.columns), f"Loaded {len(df)} rows")
+                st.success(f"✅ Загружено {len(df):,} строк из JSON")
                 st.dataframe(df.head(10), use_container_width=True, hide_index=True)
-            except Exception as e:
-                st.error(f"Ошибка парсинга: {e}")
-        st.markdown('</div>', unsafe_allow_html=True)
-    with source_tabs[4]:
-        st.markdown('<div class="glass-card">', unsafe_allow_html=True)
-        st.markdown("Сгенерировать демо-данные за 2.5 года (1000+ строк)")
-        if st.button("🎲 Сгенерировать демо-данные"):
-            with st.spinner("Генерация..."):
-                df = generate_sample_data()
-                st.session_state.data = df
-                save_upload("sample_data", "Demo", len(df), len(df.columns), f"Generated {len(df)} rows")
-                st.success(f"✅ Сгенерировано {len(df):,} строк демо-данных")
-                st.dataframe(df.head(10), use_container_width=True, hide_index=True)
-        st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with source_tabs[3]:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.markdown("Введите данные в формате CSV (первая строка — заголовки):")
+            manual_data = st.text_area("Данные", height=200, placeholder="date,user_id,revenue\n2024-01-01,user_001,150.00\n...")
+            if st.button("Загрузить ручной ввод") and manual_data:
+                try:
+                    df = pd.read_csv(BytesIO(manual_data.encode()))
+                    st.session_state.data = df
+                    save_upload("manual_input", "Manual", len(df), len(df.columns), f"Loaded {len(df)} rows")
+                    st.success(f"✅ Загружено {len(df):,} строк")
+                    st.dataframe(df.head(10), use_container_width=True, hide_index=True)
+                except Exception as e:
+                    st.error(f"Ошибка парсинга: {e}")
+            st.markdown('</div>', unsafe_allow_html=True)
+        with source_tabs[4]:
+            st.markdown('<div class="glass-card">', unsafe_allow_html=True)
+            st.markdown("Сгенерировать демо-данные за 2.5 года (1000+ строк)")
+            if st.button("🎲 Сгенерировать демо-данные"):
+                with st.spinner("Генерация..."):
+                    df = generate_sample_data()
+                    st.session_state.data = df
+                    save_upload("sample_data", "Demo", len(df), len(df.columns), f"Generated {len(df)} rows")
+                    st.success(f"✅ Сгенерировано {len(df):,} строк демо-данных")
+                    st.dataframe(df.head(10), use_container_width=True, hide_index=True)
+            st.markdown('</div>', unsafe_allow_html=True)
 
 # ==================== PAGE: DASHBOARD ====================
 elif page == "📊 Дашборд":
@@ -354,9 +422,32 @@ elif page == "📊 Дашборд":
     else:
         df = st.session_state.data.copy()
         metrics = calculate_metrics(df)
+
         st.markdown('<div class="title-gradient">Дашборд</div>', unsafe_allow_html=True)
         st.markdown('<div class="subtitle">Ключевые метрики в реальном времени</div>', unsafe_allow_html=True)
         st.markdown("<hr>", unsafe_allow_html=True)
+
+        # Share button (only in edit mode)
+        if not st.session_state.is_public:
+            col_share, col_spacer = st.columns([1, 4])
+            with col_share:
+                if st.button("🔗 Поделиться дашбордом", use_container_width=True):
+                    with st.spinner("Создание публичной ссылки..."):
+                        dash_id = share_dashboard(df, st.session_state.white_label)
+                        st.session_state.dashboard_id = dash_id
+                        # Build URL
+                        base_url = st.query_params.get("_streamlit_url", "")
+                        if not base_url:
+                            base_url = st.runtime.get_instance()._main_script_path if hasattr(st.runtime, 'get_instance') else ""
+                        share_url = f"?dashboard_id={dash_id}"
+                        st.session_state.share_url = share_url
+                        st.rerun()
+
+            if st.session_state.get('share_url'):
+                share_url = st.session_state.share_url
+                st.markdown(f'<div class="glass-card" style="margin-top:0.5rem;"><div style="color:#94A3B8;font-size:0.8rem;margin-bottom:0.5rem;">Публичная ссылка:</div><div style="display:flex;gap:0.5rem;align-items:center;"><input type="text" value="{share_url}" readonly style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:0.5rem 0.75rem;color:#E2E8F0;font-family:monospace;font-size:0.8rem;"><button class="copy-btn" onclick="navigator.clipboard.writeText(window.location.origin + window.location.pathname + \'{share_url}\'); this.innerText=\'✅ Скопировано\'; this.classList.add(\'copied\'); setTimeout(()=>{{this.innerText=\'📋 Копировать\'; this.classList.remove(\'copied\');}}, 2000);">📋 Копировать</button></div></div>', unsafe_allow_html=True)
+
+        # Metric cards
         m1, m2, m3, m4, m5, m6 = st.columns(6)
         with m1:
             delta = f"{metrics['revenue_delta']:+.1f}%" if metrics['revenue_delta'] is not None else "—"
@@ -374,7 +465,9 @@ elif page == "📊 Дашборд":
             ratio = metrics['ltv_cac_ratio']
             ratio_color = "#34D399" if ratio > 3 else "#FBBF24" if ratio > 1 else "#F87171"
             st.markdown(f'<div class="metric-container"><div class="metric-label">LTV / CAC</div><div class="metric-value" style="color: {ratio_color};">{ratio:.1f}x</div></div>', unsafe_allow_html=True)
+
         st.markdown("<br>", unsafe_allow_html=True)
+
         if metrics['monthly_trend'] is not None:
             col1, col2 = st.columns(2)
             with col1:
@@ -391,6 +484,7 @@ elif page == "📊 Дашборд":
                 fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font_color='#94A3B8', margin=dict(l=20, r=20, t=40, b=20))
                 st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
                 st.markdown('</div>', unsafe_allow_html=True)
+
         if 'channel' in df.columns:
             st.markdown('<div class="glass-card">', unsafe_allow_html=True)
             st.markdown('<div class="section-title">🎯 Выручка по каналам</div>', unsafe_allow_html=True)
@@ -445,9 +539,7 @@ elif page == "📈 Тренды и сравнение":
             monthly = df.groupby('year_month')['revenue'].sum().reset_index()
             monthly['idx'] = range(len(monthly))
             if len(monthly) >= 3:
-                x = monthly['idx'].values
-                y = monthly['revenue'].values
-                n = len(x)
+                x = monthly['idx'].values; y = monthly['revenue'].values; n = len(x)
                 slope = (n * np.sum(x * y) - np.sum(x) * np.sum(y)) / (n * np.sum(x**2) - np.sum(x)**2)
                 intercept = (np.sum(y) - slope * np.sum(x)) / n
                 future_idx = list(range(n, n + 3))
