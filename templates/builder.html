@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mb-8 animate-in">
+    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">Custom Report Builder</h1>
+    <p class="text-sm" style="color: var(--text-secondary);">Создайте кастомный дашборд за 3 шага</p>
+</div>
+
+{% if not has_data %}
+<div class="glass-card text-center py-20 animate-in delay-1">
+    <div class="text-5xl mb-6">⚡</div>
+    <p class="text-lg mb-2" style="color: var(--text-secondary);">Нет данных</p>
+    <p class="text-sm mb-8" style="color: var(--text-tertiary);">Загрузите демо-данные, чтобы начать строить отчёты</p>
+    <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
+</div>
+{% else %}
+
+<!-- Builder Steps -->
+<div class="grid grid-cols-3 gap-6 mb-8">
+    <div class="glass-card animate-in delay-1 text-center">
+        <div class="text-3xl mb-3">1️⃣</div>
+        <div class="font-semibold text-white mb-1">Выберите метрику</div>
+        <div class="text-sm" style="color: var(--text-tertiary);">Revenue, Users, Orders, CAC</div>
+    </div>
+    <div class="glass-card animate-in delay-2 text-center">
+        <div class="text-3xl mb-3">2️⃣</div>
+        <div class="font-semibold text-white mb-1">Настройте период</div>
+        <div class="text-sm" style="color: var(--text-tertiary);">Daily, Weekly, Monthly</div>
+    </div>
+    <div class="glass-card animate-in delay-3 text-center">
+        <div class="text-3xl mb-3">3️⃣</div>
+        <div class="font-semibold text-white mb-1">Выберите визуализацию</div>
+        <div class="text-sm" style="color: var(--text-tertiary);">Line, Bar, Area, Scatter</div>
+    </div>
+</div>
+
+<!-- Builder Form -->
+<div class="glass-card animate-in delay-4">
+    <form hx-post="/builder-generate" hx-target="#builder-result" class="space-y-6">
+        <div class="grid grid-cols-3 gap-6">
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Метрика</label>
+                <select name="metric" class="w-full">
+                    <option value="revenue">Выручка</option>
+                    <option value="user_id">Пользователи</option>
+                    <option value="marketing_cost">Маркетинговые расходы</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Период</label>
+                <select name="period" class="w-full">
+                    <option value="monthly">Monthly</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="daily">Daily</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-2" style="color: var(--text-secondary);">Тип графика</label>
+                <select name="chart_type" class="w-full">
+                    <option value="line">Line</option>
+                    <option value="bar">Bar</option>
+                    <option value="area">Area</option>
+                    <option value="scatter">Scatter</option>
+                </select>
+            </div>
+        </div>
+        <div class="flex items-center gap-4">
+            <label class="text-sm" style="color: var(--text-secondary);">Layout:</label>
+            <div class="flex gap-2">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="layout" value="standard" checked class="ios-toggle" style="width: 40px; height: 24px;">
+                    <span class="text-sm" style="color: var(--text-secondary);">Standard</span>
+                </label>
+            </div>
+        </div>
+        <button type="submit" class="btn-primary">
+            <span style="margin-right: 0.5rem;">🚀</span>Сгенерировать отчёт
+        </button>
+    </form>
+</div>
+
+<!-- Result -->
+<div id="builder-result" class="mt-6"></div>
+
+{% endif %}
+{% endblock %}
