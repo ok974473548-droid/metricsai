@@ -9,14 +9,22 @@
 <div class="glass-card text-center py-20 animate-in delay-1">
     <div class="text-5xl mb-6">🔻</div>
     <p class="text-lg mb-2" style="color: var(--text-secondary);">Нет данных</p>
-    <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
+    <form action="/load-sample" method="post">
+        <button type="submit" class="btn-primary">🎲 Загрузить демо-данные</button>
+    </form>
 </div>
 {% else %}
+{% if charts.get('funnel') %}
 <div class="glass-card animate-in delay-1">
     <div class="section-title">🔻 Воронка</div>
     <div style="height: 400px;">
         {{ charts.funnel | safe }}
     </div>
 </div>
+{% else %}
+<div class="glass-card animate-in delay-1 text-center py-12">
+    <p style="color: var(--text-secondary);">Нет данных для воронки. Добавьте колонку <code>event_type</code> в данные.</p>
+</div>
+{% endif %}
 {% endif %}
 {% endblock %}
