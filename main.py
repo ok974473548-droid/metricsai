@@ -1,18 +1,19 @@
-from fastapi import FastAPI, Request, Form, UploadFile, File
+from fastapi import FastAPI, Request, Form, UploadFile, File, HTTPException
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+from plotly.utils import PlotlyJSONEncoder
 import json
 import sqlite3
 import hashlib
 from datetime import datetime, timedelta
 from io import BytesIO, StringIO
 import os
+import urllib.parse
 
 app = FastAPI(title="MetricsAI")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -30,6 +31,7 @@ def init_db():
     c.execute("CREATE TABLE IF NOT EXISTS shared_dashboards (id TEXT PRIMARY KEY, created_at TEXT, data_json TEXT, white_label TEXT)")
     c.execute("CREATE TABLE IF NOT EXISTS uploads (id INTEGER PRIMARY KEY AUTOINCREMENT, filename TEXT, source_type TEXT, upload_date TEXT, rows INTEGER, cols INTEGER)")
     c.execute("CREATE TABLE IF NOT EXISTS custom_reports (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, config_json TEXT, created_at TEXT)")
+    c.execute("CREATE TABLE IF NOT EXISTS api_keys (id INTEGER PRIMARY KEY AUTOINCREMENT, service TEXT, key_value TEXT, created_at TEXT)")
     conn.commit()
     conn.close()
 
@@ -127,23 +129,19 @@ def build_charts(df, metrics):
 
     return charts
 
-# ==================== REVENUE ANALYTICS ====================
 def calculate_revenue_metrics(df):
     rev = {}
     df["date"] = pd.to_datetime(df["date"])
     df["month"] = df["date"].dt.to_period("M")
     df["year"] = df["date"].dt.year
 
-    # MRR/ARR
     monthly_rev = df.groupby("month")["revenue"].sum()
     rev["mrr"] = float(monthly_rev.iloc[-1]) if len(monthly_rev) > 0 else 0
     rev["arr"] = rev["mrr"] * 12
     rev["mrr_growth"] = float((monthly_rev.iloc[-1] - monthly_rev.iloc[-2]) / monthly_rev.iloc[-2] * 100) if len(monthly_rev) >= 2 and monthly_rev.iloc[-2] > 0 else 0
 
-    # Revenue waterfall
     rev["waterfall"] = monthly_rev.reset_index().to_dict("records")
 
-    # Cohort revenue
     df["order_month"] = df["date"].dt.to_period("M")
     df["cohort"] = df.groupby("user_id")["order_month"].transform("min")
     cohort_rev = df.groupby(["cohort", "order_month"])["revenue"].sum().reset_index()
@@ -151,11 +149,9 @@ def calculate_revenue_metrics(df):
     cohort_table = cohort_rev.pivot(index="cohort", columns="period", values="revenue").fillna(0)
     rev["cohort_revenue"] = cohort_table.reset_index().to_dict("records")
 
-    # LTV prediction
     user_ltv = df.groupby("user_id")["revenue"].sum().sort_values(ascending=False)
     rev["ltv_curve"] = [{"percentile": i, "ltv": float(user_ltv.quantile(i/100))} for i in range(0, 101, 5)]
 
-    # Subscription breakdown
     if "subscription" in df.columns:
         sub_breakdown = df.groupby("subscription")["revenue"].sum().reset_index().to_dict("records")
         rev["subscription"] = sub_breakdown
@@ -164,15 +160,12 @@ def calculate_revenue_metrics(df):
 
 def build_revenue_charts(df, rev_metrics):
     charts = {}
-
-    # MRR Trend
     if rev_metrics.get("waterfall"):
         water_df = pd.DataFrame(rev_metrics["waterfall"])
         fig = px.area(water_df, x="month", y="revenue", template="plotly_dark", color_discrete_sequence=["#34D399"])
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False)
         charts["mrr_trend"] = fig.to_html(full_html=False, include_plotlyjs="cdn")
 
-    # LTV Curve
     if rev_metrics.get("ltv_curve"):
         ltv_df = pd.DataFrame(rev_metrics["ltv_curve"])
         fig = px.line(ltv_df, x="percentile", y="ltv", template="plotly_dark")
@@ -180,7 +173,6 @@ def build_revenue_charts(df, rev_metrics):
         fig.update_traces(line_color="#60A5FA", fill="tozeroy", fillcolor="rgba(96,165,250,0.1)")
         charts["ltv_curve"] = fig.to_html(full_html=False, include_plotlyjs=False)
 
-    # Subscription pie
     if rev_metrics.get("subscription"):
         sub_df = pd.DataFrame(rev_metrics["subscription"])
         fig = px.pie(sub_df, values="revenue", names="subscription", template="plotly_dark", hole=0.5)
@@ -222,15 +214,166 @@ def index(request: Request):
     response.set_cookie("session_id", session_id)
     return response
 
+# ==================== DATA SOURCES & INTEGRATIONS ====================
+@app.get("/sources", response_class=HTMLResponse)
+def sources_page(request: Request):
+    session_id = request.cookies.get("session_id")
+    data = get_session_data(session_id)
+    white_label = data["white_label"] if data else {"company_name": "MetricsAI", "logo_text": "MetricsAI"}
+    return templates.TemplateResponse("sources.html", {
+        "request": request, "white_label": white_label, "page": "sources",
+    })
+
 @app.post("/load-sample")
 def load_sample(request: Request):
     session_id = request.cookies.get("session_id")
     if not session_id:
-        return HTMLResponse("<div class='alert'>No session</div>")
+        session_id = hashlib.sha256(str(datetime.now()).encode()).hexdigest()[:16]
     df = generate_sample_data()
     set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
-    return HTMLResponse("", status_code=200, headers={"HX-Redirect": "/"})
+    response = RedirectResponse(url="/", status_code=303)
+    response.set_cookie("session_id", session_id)
+    return response
 
+@app.post("/upload-csv")
+async def upload_csv(request: Request, file: UploadFile = File(...)):
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        session_id = hashlib.sha256(str(datetime.now()).encode()).hexdigest()[:16]
+
+    contents = await file.read()
+
+    try:
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(BytesIO(contents))
+        elif file.filename.endswith(('.xlsx', '.xls')):
+            df = pd.read_excel(BytesIO(contents))
+        else:
+            return HTMLResponse("<div class='glass-card text-red-400 p-4'>❌ Поддерживаются только CSV и Excel</div>")
+
+        # Auto-detect columns
+        date_col = next((c for c in df.columns if 'date' in c.lower()), None)
+        if date_col and date_col != 'date':
+            df = df.rename(columns={date_col: 'date'})
+        user_col = next((c for c in df.columns if any(x in c.lower() for x in ['user', 'customer', 'client'])), None)
+        if user_col and user_col != 'user_id':
+            df = df.rename(columns={user_col: 'user_id'})
+        revenue_col = next((c for c in df.columns if any(x in c.lower() for x in ['revenue', 'amount', 'sum', 'price', 'value'])), None)
+        if revenue_col and revenue_col != 'revenue':
+            df = df.rename(columns={revenue_col: 'revenue'})
+
+        set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
+
+        # Save to DB
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("INSERT INTO uploads (filename, source_type, upload_date, rows, cols) VALUES (?, ?, ?, ?, ?)",
+                  (file.filename, "upload", datetime.now().isoformat(), len(df), len(df.columns)))
+        conn.commit()
+        conn.close()
+
+        response = RedirectResponse(url="/", status_code=303)
+        response.set_cookie("session_id", session_id)
+        return response
+    except Exception as e:
+        return HTMLResponse(f"<div class='glass-card text-red-400 p-4'>❌ Ошибка: {str(e)}</div>")
+
+@app.post("/connect-google-sheets")
+async def connect_google_sheets(request: Request, url: str = Form(...)):
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        session_id = hashlib.sha256(str(datetime.now()).encode()).hexdigest()[:16]
+
+    try:
+        # Convert Google Sheets URL to CSV export URL
+        if '/edit' in url:
+            csv_url = url.replace('/edit', '/export?format=csv')
+        elif 'export?format=csv' not in url:
+            csv_url = url + '/export?format=csv'
+        else:
+            csv_url = url
+
+        df = pd.read_csv(csv_url)
+
+        # Auto-detect columns
+        date_col = next((c for c in df.columns if 'date' in c.lower()), None)
+        if date_col and date_col != 'date':
+            df = df.rename(columns={date_col: 'date'})
+        user_col = next((c for c in df.columns if any(x in c.lower() for x in ['user', 'customer', 'client'])), None)
+        if user_col and user_col != 'user_id':
+            df = df.rename(columns={user_col: 'user_id'})
+        revenue_col = next((c for c in df.columns if any(x in c.lower() for x in ['revenue', 'amount', 'sum', 'price', 'value'])), None)
+        if revenue_col and revenue_col != 'revenue':
+            df = df.rename(columns={revenue_col: 'revenue'})
+
+        set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
+
+        conn = get_db()
+        c = conn.cursor()
+        c.execute("INSERT INTO uploads (filename, source_type, upload_date, rows, cols) VALUES (?, ?, ?, ?, ?)",
+                  ("google_sheets", "google_sheets", datetime.now().isoformat(), len(df), len(df.columns)))
+        conn.commit()
+        conn.close()
+
+        response = RedirectResponse(url="/", status_code=303)
+        response.set_cookie("session_id", session_id)
+        return response
+    except Exception as e:
+        return HTMLResponse(f"<div class='glass-card text-red-400 p-4'>❌ Ошибка загрузки Google Sheets: {str(e)}<br><br>Проверьте, что таблица опубликована (File → Share → Anyone with link)</div>")
+
+@app.post("/connect-postgresql")
+async def connect_postgresql(request: Request, host: str = Form(...), port: str = Form("5432"), database: str = Form(...), user: str = Form(...), password: str = Form(...), query: str = Form(...)):
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        session_id = hashlib.sha256(str(datetime.now()).encode()).hexdigest()[:16]
+
+    try:
+        import psycopg2
+        conn = psycopg2.connect(host=host, port=port, database=database, user=user, password=password)
+        df = pd.read_sql(query, conn)
+        conn.close()
+
+        set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
+
+        response = RedirectResponse(url="/", status_code=303)
+        response.set_cookie("session_id", session_id)
+        return response
+    except ImportError:
+        return HTMLResponse("<div class='glass-card text-red-400 p-4'>❌ Установите psycopg2: <code>pip install psycopg2-binary</code></div>")
+    except Exception as e:
+        return HTMLResponse(f"<div class='glass-card text-red-400 p-4'>❌ Ошибка подключения: {str(e)}</div>")
+
+@app.post("/api/v1/ingest")
+async def api_ingest(request: Request):
+    """REST API endpoint for incoming data"""
+    try:
+        body = await request.json()
+        session_id = request.headers.get("X-Session-ID", hashlib.sha256(str(datetime.now()).encode()).hexdigest()[:16])
+
+        if isinstance(body, list):
+            df = pd.DataFrame(body)
+        elif isinstance(body, dict) and "data" in body:
+            df = pd.DataFrame(body["data"])
+        else:
+            return JSONResponse({"error": "Expected JSON array or {data: [...]}"}, status_code=400)
+
+        set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
+
+        return JSONResponse({
+            "success": True,
+            "session_id": session_id,
+            "rows": len(df),
+            "cols": len(df.columns),
+            "dashboard_url": f"/?session_id={session_id}"
+        })
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+@app.get("/api/v1/health")
+def api_health():
+    return {"status": "ok", "version": "3.0", "timestamp": datetime.now().isoformat()}
+
+# ==================== SHARE ====================
 @app.post("/share")
 def share_dashboard(request: Request):
     session_id = request.cookies.get("session_id")
@@ -263,6 +406,7 @@ def public_dashboard(request: Request, dashboard_id: str):
         "request": request, "metrics": metrics, "charts": charts, "white_label": white_label,
     })
 
+# ==================== OTHER PAGES ====================
 @app.get("/funnel", response_class=HTMLResponse)
 def funnel_page(request: Request):
     session_id = request.cookies.get("session_id")
