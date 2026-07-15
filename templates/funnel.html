@@ -1,18 +1,22 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="mb-6">
-    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-1">Воронка конверсии</h1>
+<div class="mb-8 animate-in">
+    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">Воронка конверсии</h1>
+    <p class="text-sm" style="color: var(--text-secondary);">Анализ этапов воронки и конверсии</p>
 </div>
-<hr class="border-white/5 mb-6">
 
 {% if not has_data %}
-<div class="glass-card text-center py-16">
-    <p class="text-gray-400 text-lg mb-6">Нет данных</p>
+<div class="glass-card text-center py-20 animate-in delay-1">
+    <div class="text-5xl mb-6">🔻</div>
+    <p class="text-lg mb-2" style="color: var(--text-secondary);">Нет данных</p>
     <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
 </div>
 {% else %}
-<div class="glass-card">
-    {{ charts.funnel | safe }}
+<div class="glass-card animate-in delay-1">
+    <div class="section-title">🔻 Воронка</div>
+    <div style="height: 400px;">
+        {{ charts.funnel | safe }}
+    </div>
 </div>
 {% endif %}
 {% endblock %}
