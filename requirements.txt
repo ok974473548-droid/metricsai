@@ -7,3 +7,5 @@ numpy==1.26.4
 plotly==5.22.0
 openpyxl==3.1.5
 openai==1.35.0
+# Optional: psycopg2-binary for PostgreSQL
+# psycopg2-binary==2.9.9
