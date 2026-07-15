@@ -1,8 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
 <div class="mb-8 animate-in">
-    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">Дашборд</h1>
-    <p class="text-sm" style="color: var(--text-secondary);">Ключевые метрики в реальном времени</p>
+    <div class="flex items-center justify-between flex-wrap gap-4">
+        <div>
+            <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">Дашборд</h1>
+            <p class="text-sm" style="color: var(--text-secondary);">Ключевые метрики в реальном времени</p>
+        </div>
+        <div id="ws-status" class="live-indicator" style="display: none;">
+            <span class="live-dot"></span> LIVE
+        </div>
+    </div>
 </div>
 
 {% if not has_data %}
@@ -15,9 +22,12 @@
 {% else %}
 
 <!-- Share -->
-<div class="mb-6 flex items-center gap-4 animate-in delay-1">
+<div class="mb-6 flex items-center gap-4 animate-in delay-1 flex-wrap">
     <button class="btn-primary" hx-post="/share" hx-target="#share-result" hx-swap="innerHTML">
         <span style="margin-right: 0.5rem;">🔗</span>Поделиться
+    </button>
+    <button onclick="simulateLiveData()" class="btn-secondary">
+        <span style="margin-right: 0.5rem;">🔄</span>Live
     </button>
     <div id="share-result"></div>
 </div>
@@ -30,12 +40,12 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <div class="metric-label">Выручка</div>
-                <div class="metric-value">{{ "{:,.0f}".format(metrics.total_revenue) }} ₽</div>
+                <div class="metric-value" id="metric-revenue">{{ "{:,.0f}".format(metrics.total_revenue) }} ₽</div>
             </div>
             <div class="text-3xl">💰</div>
         </div>
         <div class="metric-delta positive">+12.4% vs прошлый месяц</div>
-        <div class="mt-4" style="height: 120px; opacity: 0.6;">
+        <div class="mt-4" style="height: 200px; opacity: 0.9;">
             {{ charts.revenue | safe }}
         </div>
     </div>
@@ -45,7 +55,7 @@
         <div class="flex items-center justify-between mb-4">
             <div>
                 <div class="metric-label">Пользователей</div>
-                <div class="metric-value">{{ "{:,}".format(metrics.total_users) }}</div>
+                <div class="metric-value" id="metric-users">{{ "{:,}".format(metrics.total_users) }}</div>
             </div>
             <div class="text-3xl">👥</div>
         </div>
@@ -65,7 +75,7 @@
     <!-- Small Widget: ARPU -->
     <div class="glass-card widget-small animate-in delay-3">
         <div class="metric-label">ARPU</div>
-        <div class="metric-value">{{ "{:,.0f}".format(metrics.arpu) }} ₽</div>
+        <div class="metric-value" id="metric-arpu">{{ "{:,.0f}".format(metrics.arpu) }} ₽</div>
         <div class="metric-delta positive">+5.1%</div>
     </div>
 
@@ -97,7 +107,7 @@
     <!-- Medium Widget: ARPU Trend -->
     <div class="glass-card widget-medium animate-in delay-5">
         <div class="metric-label mb-2">ARPU по месяцам</div>
-        <div style="height: 100px;">
+        <div style="height: 200px;">
             {{ charts.arpu | safe }}
         </div>
     </div>
@@ -105,7 +115,7 @@
     <!-- Medium Widget: Channels -->
     <div class="glass-card widget-medium animate-in delay-5">
         <div class="metric-label mb-2">Каналы</div>
-        <div style="height: 100px;">
+        <div style="height: 200px;">
             {{ charts.channel | safe }}
         </div>
     </div>
@@ -121,11 +131,30 @@
 </div>
 
 <script>
+// Live update handler for dashboard metrics
+window.addEventListener('metricsUpdate', function(e) {
+    const m = e.detail.metrics;
+    const revEl = document.getElementById('metric-revenue');
+    const usersEl = document.getElementById('metric-users');
+    const arpuEl = document.getElementById('metric-arpu');
+    if (revEl) revEl.textContent = m.total_revenue.toLocaleString() + ' ₽';
+    if (usersEl) usersEl.textContent = m.total_users.toLocaleString();
+    if (arpuEl) arpuEl.textContent = m.arpu.toLocaleString() + ' ₽';
+});
+
 document.body.addEventListener('htmx:afterRequest', function(evt) {
     if (evt.detail.xhr.responseURL && evt.detail.xhr.responseURL.includes('/share')) {
-        var data = JSON.parse(evt.detail.xhr.response);
-        var result = document.getElementById('share-result');
-        result.innerHTML = '<div class="glass-card flex items-center gap-3 py-2 px-3"><input type="text" value="' + window.location.origin + data.url + '" readonly class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white w-72"><button onclick="navigator.clipboard.writeText(window.location.origin + '' + data.url + ''); this.innerHTML='<span style=margin-right:0.3rem>✅</span>Скопировано'; this.style.color='var(--accent-green)'; setTimeout(()=>{this.innerHTML='<span style=margin-right:0.3rem>📋</span>Копировать'; this.style.color='';}, 2000);" class="btn-secondary text-sm">📋 Копировать</button></div>';
+        try {
+            var data = JSON.parse(evt.detail.xhr.response);
+            var result = document.getElementById('share-result');
+            if (data.url) {
+                result.innerHTML = '<div class="glass-card flex items-center gap-3 py-2 px-3"><input type="text" value="' + window.location.origin + data.url + '" readonly class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white w-72"><button onclick="navigator.clipboard.writeText(window.location.origin + '' + data.url + ''); this.innerHTML='<span style=margin-right:0.3rem>✅</span>Скопировано'; this.style.color='#34D399'; setTimeout(()=>{this.innerHTML='<span style=margin-right:0.3rem>📋</span>Копировать'; this.style.color='';}, 2000);" class="btn-secondary text-sm">📋 Копировать</button></div>';
+            } else if (data.error) {
+                result.innerHTML = '<div class="glass-card text-red-400 p-3">' + data.error + '</div>';
+            }
+        } catch(e) {
+            console.error('Share response parse error:', e);
+        }
     }
 });
 </script>
