@@ -1,19 +1,22 @@
-from fastapi import FastAPI, Request, Form, UploadFile, File, HTTPException
+
+import os, shutil, zipfile
+
+project_dir = "/mnt/agents/output/metricsai_fastapi"
+
+main_py = r'''from fastapi import FastAPI, Request, Form, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, FileResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 import pandas as pd
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-from plotly.utils import PlotlyJSONEncoder
 import json
 import sqlite3
 import hashlib
 from datetime import datetime, timedelta
 from io import BytesIO, StringIO
 import os
-import urllib.parse
 
 app = FastAPI(title="MetricsAI")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -54,6 +57,7 @@ def generate_sample_data():
         "marketing_cost": np.random.choice([0, 0, 0, 30, 50, 80, 120, 200], n),
         "subscription": np.random.choice(["monthly", "annual", "none"], n, p=[0.15, 0.05, 0.80]),
     })
+    df["date"] = pd.to_datetime(df["date"])
     return df.sort_values("date").reset_index(drop=True)
 
 def calculate_metrics(df):
@@ -72,16 +76,16 @@ def calculate_metrics(df):
         metrics["avg_cac"] = 0.0
         metrics["cac_by_channel"] = []
     if "date" in df.columns and "user_id" in df.columns and "revenue" in df.columns:
-        df["date"] = pd.to_datetime(df["date"])
         user_revenue = df.groupby("user_id")["revenue"].sum()
         metrics["ltv"] = float(user_revenue.mean() * 2.0)
     else:
         metrics["ltv"] = metrics["arpu"] * 3.0
     metrics["ltv_cac_ratio"] = metrics["ltv"] / metrics["avg_cac"] if metrics["avg_cac"] > 0 else 0.0
     if "date" in df.columns:
-        df["month"] = df["date"].dt.to_period("M").astype(str)
-        monthly = df.groupby("month").agg({"revenue": "sum", "user_id": "nunique"}).reset_index()
+        df["month_str"] = df["date"].dt.strftime("%Y-%m")
+        monthly = df.groupby("month_str").agg({"revenue": "sum", "user_id": "nunique"}).reset_index()
         monthly["arpu"] = monthly["revenue"] / monthly["user_id"]
+        monthly = monthly.rename(columns={"month_str": "month"})
         metrics["monthly_trend"] = monthly.to_dict("records")
     else:
         metrics["monthly_trend"] = []
@@ -108,55 +112,49 @@ def build_charts(df, metrics):
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False)
         fig.update_traces(line_color="#F8FAFC", line_width=3)
         charts["revenue"] = fig.to_html(full_html=False, include_plotlyjs="cdn")
-
+        
         fig2 = px.bar(monthly_df, x="month", y="arpu", template="plotly_dark")
         fig2.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False)
         fig2.update_traces(marker_color="#94A3B8", marker_opacity=0.7)
         charts["arpu"] = fig2.to_html(full_html=False, include_plotlyjs=False)
-
+    
     if metrics.get("funnel"):
         funnel_df = pd.DataFrame(metrics["funnel"])
         fig = px.funnel(funnel_df, x="users", y="step", template="plotly_dark")
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
         charts["funnel"] = fig.to_html(full_html=False, include_plotlyjs=False)
-
+    
     if "channel" in df.columns:
         channel_df = df.groupby("channel")["revenue"].sum().reset_index().sort_values("revenue", ascending=True)
         fig = px.bar(channel_df, x="revenue", y="channel", orientation="h", template="plotly_dark")
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
         fig.update_traces(marker_color="#F8FAFC", marker_opacity=0.8)
         charts["channel"] = fig.to_html(full_html=False, include_plotlyjs=False)
-
+    
     return charts
 
 def calculate_revenue_metrics(df):
     rev = {}
-    df["date"] = pd.to_datetime(df["date"])
-    df["month"] = df["date"].dt.to_period("M")
-    df["year"] = df["date"].dt.year
-
-    waterfall_df = monthly_rev.reset_index()
-waterfall_df["month"] = waterfall_df["month"].astype(str)  # ← string!
-rev["waterfall"] = waterfall_df.to_dict("records")
+    df["month_str"] = df["date"].dt.strftime("%Y-%m")
+    
+    monthly_rev = df.groupby("month_str")["revenue"].sum()
     rev["mrr"] = float(monthly_rev.iloc[-1]) if len(monthly_rev) > 0 else 0
     rev["arr"] = rev["mrr"] * 12
     rev["mrr_growth"] = float((monthly_rev.iloc[-1] - monthly_rev.iloc[-2]) / monthly_rev.iloc[-2] * 100) if len(monthly_rev) >= 2 and monthly_rev.iloc[-2] > 0 else 0
-
-
-    df["order_month"] = df["date"].dt.to_period("M")
-    df["cohort"] = df.groupby("user_id")["order_month"].transform("min")
-    cohort_rev = df.groupby(["cohort", "order_month"])["revenue"].sum().reset_index()
-    cohort_rev["period"] = (cohort_rev["order_month"] - cohort_rev["cohort"]).apply(lambda x: x.n)
-    cohort_table = cohort_rev.pivot(index="cohort", columns="period", values="revenue").fillna(0)
-    rev["cohort_revenue"] = cohort_table.reset_index().to_dict("records")
-
+    
+    # Already string month
+    waterfall_df = monthly_rev.reset_index().rename(columns={"month_str": "month"})
+    rev["waterfall"] = waterfall_df.to_dict("records")
+    
+    # LTV curve
     user_ltv = df.groupby("user_id")["revenue"].sum().sort_values(ascending=False)
     rev["ltv_curve"] = [{"percentile": i, "ltv": float(user_ltv.quantile(i/100))} for i in range(0, 101, 5)]
-
+    
+    # Subscription
     if "subscription" in df.columns:
         sub_breakdown = df.groupby("subscription")["revenue"].sum().reset_index().to_dict("records")
         rev["subscription"] = sub_breakdown
-
+    
     return rev
 
 def build_revenue_charts(df, rev_metrics):
@@ -166,21 +164,21 @@ def build_revenue_charts(df, rev_metrics):
         fig = px.area(water_df, x="month", y="revenue", template="plotly_dark", color_discrete_sequence=["#34D399"])
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False)
         charts["mrr_trend"] = fig.to_html(full_html=False, include_plotlyjs="cdn")
-
+    
     if rev_metrics.get("ltv_curve"):
         ltv_df = pd.DataFrame(rev_metrics["ltv_curve"])
         fig = px.line(ltv_df, x="percentile", y="ltv", template="plotly_dark")
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False)
         fig.update_traces(line_color="#60A5FA", fill="tozeroy", fillcolor="rgba(96,165,250,0.1)")
         charts["ltv_curve"] = fig.to_html(full_html=False, include_plotlyjs=False)
-
+    
     if rev_metrics.get("subscription"):
         sub_df = pd.DataFrame(rev_metrics["subscription"])
         fig = px.pie(sub_df, values="revenue", names="subscription", template="plotly_dark", hole=0.5)
         fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)", font_color="#94A3B8", margin=dict(l=20, r=20, t=20, b=20), showlegend=False)
         fig.update_traces(marker_colors=["#34D399", "#60A5FA", "#94A3B8"])
         charts["subscription"] = fig.to_html(full_html=False, include_plotlyjs=False)
-
+    
     return charts
 
 # ==================== IN-MEMORY STORE ====================
@@ -207,7 +205,7 @@ def index(request: Request):
     metrics = data["metrics"] if data else {}
     charts = data["charts"] if data else {}
     white_label = data["white_label"] if data else {"company_name": "MetricsAI", "logo_text": "MetricsAI"}
-
+    
     response = templates.TemplateResponse("dashboard.html", {
         "request": request, "has_data": has_data, "metrics": metrics,
         "charts": charts, "white_label": white_label, "page": "dashboard",
@@ -215,7 +213,6 @@ def index(request: Request):
     response.set_cookie("session_id", session_id)
     return response
 
-# ==================== DATA SOURCES & INTEGRATIONS ====================
 @app.get("/sources", response_class=HTMLResponse)
 def sources_page(request: Request):
     session_id = request.cookies.get("session_id")
@@ -241,9 +238,9 @@ async def upload_csv(request: Request, file: UploadFile = File(...)):
     session_id = request.cookies.get("session_id")
     if not session_id:
         session_id = hashlib.sha256(str(datetime.now()).encode()).hexdigest()[:16]
-
+    
     contents = await file.read()
-
+    
     try:
         if file.filename.endswith('.csv'):
             df = pd.read_csv(BytesIO(contents))
@@ -251,8 +248,7 @@ async def upload_csv(request: Request, file: UploadFile = File(...)):
             df = pd.read_excel(BytesIO(contents))
         else:
             return HTMLResponse("<div class='glass-card text-red-400 p-4'>❌ Поддерживаются только CSV и Excel</div>")
-
-        # Auto-detect columns
+        
         date_col = next((c for c in df.columns if 'date' in c.lower()), None)
         if date_col and date_col != 'date':
             df = df.rename(columns={date_col: 'date'})
@@ -262,17 +258,19 @@ async def upload_csv(request: Request, file: UploadFile = File(...)):
         revenue_col = next((c for c in df.columns if any(x in c.lower() for x in ['revenue', 'amount', 'sum', 'price', 'value'])), None)
         if revenue_col and revenue_col != 'revenue':
             df = df.rename(columns={revenue_col: 'revenue'})
-
+        
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date'])
+        
         set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
-
-        # Save to DB
+        
         conn = get_db()
         c = conn.cursor()
         c.execute("INSERT INTO uploads (filename, source_type, upload_date, rows, cols) VALUES (?, ?, ?, ?, ?)",
                   (file.filename, "upload", datetime.now().isoformat(), len(df), len(df.columns)))
         conn.commit()
         conn.close()
-
+        
         response = RedirectResponse(url="/", status_code=303)
         response.set_cookie("session_id", session_id)
         return response
@@ -284,19 +282,17 @@ async def connect_google_sheets(request: Request, url: str = Form(...)):
     session_id = request.cookies.get("session_id")
     if not session_id:
         session_id = hashlib.sha256(str(datetime.now()).encode()).hexdigest()[:16]
-
+    
     try:
-        # Convert Google Sheets URL to CSV export URL
         if '/edit' in url:
             csv_url = url.replace('/edit', '/export?format=csv')
         elif 'export?format=csv' not in url:
             csv_url = url + '/export?format=csv'
         else:
             csv_url = url
-
+        
         df = pd.read_csv(csv_url)
-
-        # Auto-detect columns
+        
         date_col = next((c for c in df.columns if 'date' in c.lower()), None)
         if date_col and date_col != 'date':
             df = df.rename(columns={date_col: 'date'})
@@ -306,16 +302,19 @@ async def connect_google_sheets(request: Request, url: str = Form(...)):
         revenue_col = next((c for c in df.columns if any(x in c.lower() for x in ['revenue', 'amount', 'sum', 'price', 'value'])), None)
         if revenue_col and revenue_col != 'revenue':
             df = df.rename(columns={revenue_col: 'revenue'})
-
+        
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date'])
+        
         set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
-
+        
         conn = get_db()
         c = conn.cursor()
         c.execute("INSERT INTO uploads (filename, source_type, upload_date, rows, cols) VALUES (?, ?, ?, ?, ?)",
                   ("google_sheets", "google_sheets", datetime.now().isoformat(), len(df), len(df.columns)))
         conn.commit()
         conn.close()
-
+        
         response = RedirectResponse(url="/", status_code=303)
         response.set_cookie("session_id", session_id)
         return response
@@ -327,15 +326,18 @@ async def connect_postgresql(request: Request, host: str = Form(...), port: str 
     session_id = request.cookies.get("session_id")
     if not session_id:
         session_id = hashlib.sha256(str(datetime.now()).encode()).hexdigest()[:16]
-
+    
     try:
         import psycopg2
         conn = psycopg2.connect(host=host, port=port, database=database, user=user, password=password)
         df = pd.read_sql(query, conn)
         conn.close()
-
+        
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date'])
+        
         set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
-
+        
         response = RedirectResponse(url="/", status_code=303)
         response.set_cookie("session_id", session_id)
         return response
@@ -346,20 +348,22 @@ async def connect_postgresql(request: Request, host: str = Form(...), port: str 
 
 @app.post("/api/v1/ingest")
 async def api_ingest(request: Request):
-    """REST API endpoint for incoming data"""
     try:
         body = await request.json()
         session_id = request.headers.get("X-Session-ID", hashlib.sha256(str(datetime.now()).encode()).hexdigest()[:16])
-
+        
         if isinstance(body, list):
             df = pd.DataFrame(body)
         elif isinstance(body, dict) and "data" in body:
             df = pd.DataFrame(body["data"])
         else:
             return JSONResponse({"error": "Expected JSON array or {data: [...]}"}, status_code=400)
-
+        
+        if 'date' in df.columns:
+            df['date'] = pd.to_datetime(df['date'])
+        
         set_session_data(session_id, df, {"company_name": "MetricsAI", "logo_text": "MetricsAI"})
-
+        
         return JSONResponse({
             "success": True,
             "session_id": session_id,
@@ -374,7 +378,6 @@ async def api_ingest(request: Request):
 def api_health():
     return {"status": "ok", "version": "3.0", "timestamp": datetime.now().isoformat()}
 
-# ==================== SHARE ====================
 @app.post("/share")
 def share_dashboard(request: Request):
     session_id = request.cookies.get("session_id")
@@ -407,7 +410,6 @@ def public_dashboard(request: Request, dashboard_id: str):
         "request": request, "metrics": metrics, "charts": charts, "white_label": white_label,
     })
 
-# ==================== OTHER PAGES ====================
 @app.get("/funnel", response_class=HTMLResponse)
 def funnel_page(request: Request):
     session_id = request.cookies.get("session_id")
@@ -492,16 +494,16 @@ def builder_generate(request: Request, metric: str = Form("revenue"), period: st
         return HTMLResponse("<div class='glass-card text-red-400 p-4'>Сначала загрузите данные</div>")
     df = data["df"]
     df["date"] = pd.to_datetime(df["date"])
-
+    
     if period == "monthly":
-        df["period"] = df["date"].dt.to_period("M").astype(str)
+        df["period"] = df["date"].dt.strftime("%Y-%m")
     elif period == "weekly":
-        df["period"] = df["date"].dt.to_period("W").astype(str)
+        df["period"] = df["date"].dt.strftime("%Y-W%W")
     else:
-        df["period"] = df["date"].dt.to_period("D").astype(str)
-
+        df["period"] = df["date"].dt.strftime("%Y-%m-%d")
+    
     grouped = df.groupby("period")[metric].sum().reset_index()
-
+    
     if chart_type == "line":
         fig = px.line(grouped, x="period", y=metric, template="plotly_dark")
         fig.update_traces(line_color="#F8FAFC", line_width=3)
@@ -514,12 +516,26 @@ def builder_generate(request: Request, metric: str = Form("revenue"), period: st
     else:
         fig = px.scatter(grouped, x="period", y=metric, template="plotly_dark")
         fig.update_traces(marker_color="#60A5FA")
-
+    
     fig.update_layout(
         paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
         font_color="#94A3B8", margin=dict(l=20, r=20, t=40, b=20), showlegend=False,
         title=dict(text=f"{metric.upper()} — {period}", font_color="#F8FAFC", font_size=14)
     )
     chart_html = fig.to_html(full_html=False, include_plotlyjs="cdn")
-
+    
     return HTMLResponse(f"""<div class="glass-card"><h3 class="text-lg font-bold text-white mb-4">📊 {metric.upper()} ({period})</h3>{chart_html}</div>""")
+'''
+
+with open(f"{project_dir}/main.py", "w", encoding="utf-8") as f:
+    f.write(main_py)
+
+# Пересоздаём архив
+zip_path = "/mnt/agents/output/metricsai_fastapi.zip"
+if os.path.exists(zip_path):
+    os.remove(zip_path)
+shutil.make_archive("/mnt/agents/output/metricsai_fastapi", 'zip', project_dir)
+
+print("✅ Полностью переписан main.py — ВСЕ Period заменены на strftime")
+print(f"📦 Архив: {zip_path}")
+print(f"Размер: {os.path.getsize(zip_path) / 1024:.1f} KB")
