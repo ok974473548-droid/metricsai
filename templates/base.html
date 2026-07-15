@@ -9,44 +9,295 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        body { font-family: 'Inter', system-ui, sans-serif; background: #0B0F19; color: #F8FAFC; }
-        .glass-card { background: rgba(255,255,255,0.02); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 1.5rem; }
-        .glass-card:hover { border-color: rgba(255,255,255,0.12); }
-        .metric-container { background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 1.25rem; }
-        .metric-value { font-size: 1.8rem; font-weight: 700; color: #F8FAFC; }
-        .metric-label { font-size: 0.75rem; color: #64748B; text-transform: uppercase; letter-spacing: 0.08em; }
-        .btn-primary { background: #F8FAFC; color: #0B0F19; border-radius: 10px; padding: 0.6rem 1.5rem; font-weight: 600; font-size: 0.85rem; transition: all 0.2s; }
-        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(248,250,252,0.2); }
-        .btn-secondary { background: rgba(255,255,255,0.06); color: #E2E8F0; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; padding: 0.6rem 1.5rem; font-weight: 600; }
-        .btn-secondary:hover { background: rgba(255,255,255,0.1); }
-        .sidebar { background: linear-gradient(180deg, #0B0F19 0%, #111827 100%); border-right: 1px solid rgba(255,255,255,0.05); }
-        .nav-item { padding: 0.6rem 1.25rem; border-radius: 8px; color: #64748B; font-weight: 500; font-size: 0.85rem; transition: all 0.2s; display: block; }
-        .nav-item:hover { background: rgba(255,255,255,0.04); color: #E2E8F0; }
-        .nav-item.active { background: rgba(255,255,255,0.06); color: #F8FAFC; }
-        .ai-insight { background: rgba(255,255,255,0.02); border-left: 3px solid #F8FAFC; border-radius: 0 12px 12px 0; padding: 1.25rem; margin: 0.75rem 0; }
-        .ai-header { font-weight: 600; font-size: 0.85rem; color: #F8FAFC; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
-        .public-banner { background: rgba(52,211,153,0.08); border: 1px solid rgba(52,211,153,0.2); border-radius: 12px; padding: 1rem; margin-bottom: 1.5rem; }
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: rgba(11,15,25,0.5); }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 3px; }
+        :root {
+            --bg-primary: #000000;
+            --bg-secondary: #0C0C0E;
+            --bg-tertiary: #1C1C1E;
+            --glass-bg: rgba(28, 28, 30, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --glass-border-hover: rgba(255, 255, 255, 0.15);
+            --text-primary: #F5F5F7;
+            --text-secondary: #86868B;
+            --text-tertiary: #636366;
+            --accent-blue: #0A84FF;
+            --accent-green: #30D158;
+            --accent-orange: #FF9F0A;
+            --accent-red: #FF453A;
+            --accent-purple: #BF5AF2;
+            --accent-teal: #5AC8FA;
+            --accent-indigo: #5E5CE6;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        /* iOS-style scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+
+        /* Glass Card */
+        .glass-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .glass-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+        }
+        .glass-card:hover {
+            border-color: var(--glass-border-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+        }
+
+        /* Widget sizes */
+        .widget-large { grid-column: span 2; grid-row: span 2; }
+        .widget-medium { grid-column: span 2; grid-row: span 1; }
+        .widget-small { grid-column: span 1; grid-row: span 1; }
+
+        /* Metric container */
+        .metric-container {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px) saturate(180%);
+            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+            padding: 1.25rem;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .metric-container:hover {
+            border-color: var(--glass-border-hover);
+            background: rgba(28, 28, 30, 0.8);
+        }
+        .metric-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            letter-spacing: -0.02em;
+            line-height: 1.2;
+        }
+        .metric-label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+            margin-top: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .metric-delta {
+            font-size: 0.8rem;
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+        .metric-delta.positive { color: var(--accent-green); }
+        .metric-delta.negative { color: var(--accent-red); }
+
+        /* Buttons */
+        .btn-primary {
+            background: var(--text-primary);
+            color: var(--bg-primary);
+            border-radius: 12px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            letter-spacing: -0.01em;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 20px rgba(255,255,255,0.15);
+        }
+        .btn-primary:active { transform: scale(0.98); }
+
+        .btn-secondary {
+            background: rgba(255,255,255,0.06);
+            color: var(--text-primary);
+            border: 1px solid var(--glass-border);
+            border-radius: 12px;
+            padding: 0.6rem 1.5rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.1);
+            border-color: var(--glass-border-hover);
+        }
+
+        /* iOS Toggle */
+        .ios-toggle {
+            position: relative;
+            width: 51px;
+            height: 31px;
+            appearance: none;
+            background: rgba(255,255,255,0.16);
+            border-radius: 31px;
+            cursor: pointer;
+            transition: all 0.3s;
+            outline: none;
+        }
+        .ios-toggle::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 27px; height: 27px;
+            background: white;
+            border-radius: 50%;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .ios-toggle:checked { background: var(--accent-green); }
+        .ios-toggle:checked::after { left: 22px; }
+
+        /* Sidebar */
+        .sidebar {
+            background: linear-gradient(180deg, #000000 0%, #0C0C0E 100%);
+            border-right: 1px solid var(--glass-border);
+        }
+        .nav-item {
+            padding: 0.6rem 1rem;
+            border-radius: 10px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 0.85rem;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+            margin-bottom: 0.25rem;
+        }
+        .nav-item:hover {
+            background: rgba(255,255,255,0.06);
+            color: var(--text-primary);
+        }
+        .nav-item.active {
+            background: rgba(255,255,255,0.1);
+            color: var(--text-primary);
+            font-weight: 600;
+        }
+        .nav-item .nav-icon { font-size: 1.1rem; }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in {
+            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            opacity: 0;
+        }
+        .delay-1 { animation-delay: 0.1s; }
+        .delay-2 { animation-delay: 0.2s; }
+        .delay-3 { animation-delay: 0.3s; }
+        .delay-4 { animation-delay: 0.4s; }
+        .delay-5 { animation-delay: 0.5s; }
+        .delay-6 { animation-delay: 0.6s; }
+
+        /* AI Insight */
+        .ai-insight {
+            background: var(--glass-bg);
+            border-left: 3px solid var(--accent-blue);
+            border-radius: 0 16px 16px 0;
+            padding: 1.25rem;
+            margin: 0.75rem 0;
+            backdrop-filter: blur(20px);
+        }
+        .ai-header {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            font-size: 0.85rem;
+            color: var(--accent-blue);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* Public banner */
+        .public-banner {
+            background: rgba(48, 209, 88, 0.08);
+            border: 1px solid rgba(48, 209, 88, 0.2);
+            border-radius: 16px;
+            padding: 1rem 1.25rem;
+            margin-bottom: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        /* Sparkline */
+        .sparkline { width: 100%; height: 40px; }
+
+        /* Section title */
+        .section-title {
+            font-size: 1.1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            letter-spacing: -0.01em;
+        }
+
+        /* Input styling */
+        input, select, textarea {
+            background: rgba(255,255,255,0.05) !important;
+            border: 1px solid var(--glass-border) !important;
+            border-radius: 12px !important;
+            color: var(--text-primary) !important;
+            padding: 0.75rem 1rem !important;
+            font-family: 'Inter', sans-serif !important;
+            transition: all 0.3s !important;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: var(--accent-blue) !important;
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15) !important;
+        }
+
+        /* Plotly dark override */
+        .js-plotly-plot .plotly .main-svg { background: transparent !important; }
     </style>
 </head>
 <body class="min-h-screen">
     <div class="flex">
         <!-- Sidebar -->
-        <div class="sidebar fixed left-0 top-0 h-screen w-60 p-6 flex flex-col z-50">
-            <div class="text-2xl font-extrabold text-white tracking-tight mb-8">{{ white_label.logo_text }}</div>
+        <div class="sidebar fixed left-0 top-0 h-screen w-64 p-6 flex flex-col z-50">
+            <div class="text-2xl font-extrabold text-white tracking-tight mb-10" style="letter-spacing: -0.03em;">{{ white_label.logo_text }}</div>
             <nav class="flex-1 space-y-1">
-                <a href="/" class="nav-item {% if page == 'dashboard' %}active{% endif %}">📊 Дашборд</a>
-                <a href="/funnel" class="nav-item {% if page == 'funnel' %}active{% endif %}">🔻 Воронка</a>
-                <a href="/ai" class="nav-item {% if page == 'ai' %}active{% endif %}">🤖 AI-инсайты</a>
-                <a href="/ab" class="nav-item {% if page == 'ab' %}active{% endif %}">⚖️ A/B калькулятор</a>
+                <a href="/" class="nav-item {% if page == 'dashboard' %}active{% endif %}"><span class="nav-icon">📊</span> Дашборд</a>
+                <a href="/revenue" class="nav-item {% if page == 'revenue' %}active{% endif %}"><span class="nav-icon">💰</span> Revenue</a>
+                <a href="/funnel" class="nav-item {% if page == 'funnel' %}active{% endif %}"><span class="nav-icon">🔻</span> Воронка</a>
+                <a href="/ai" class="nav-item {% if page == 'ai' %}active{% endif %}"><span class="nav-icon">🤖</span> AI</a>
+                <a href="/ab" class="nav-item {% if page == 'ab' %}active{% endif %}"><span class="nav-icon">⚖️</span> A/B</a>
+                <a href="/builder" class="nav-item {% if page == 'builder' %}active{% endif %}"><span class="nav-icon">⚡</span> Builder</a>
             </nav>
-            <div class="text-xs text-gray-600 mt-auto">MetricsAI v2.0<br>FastAPI + HTMX</div>
+            <div class="text-xs mt-auto" style="color: var(--text-tertiary);">MetricsAI v3.0<br>Apple Design</div>
         </div>
 
         <!-- Main Content -->
-        <div class="ml-60 flex-1 p-8">
+        <div class="ml-64 flex-1 p-8" style="background: linear-gradient(180deg, #000000 0%, #0C0C0E 100%);">
             {% block content %}{% endblock %}
         </div>
     </div>
