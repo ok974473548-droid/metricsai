@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mb-8 animate-in">
+    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">Revenue Analytics</h1>
+    <p class="text-sm" style="color: var(--text-secondary);">MRR, ARR, cohort revenue, LTV prediction</p>
+</div>
+
+{% if not has_data %}
+<div class="glass-card text-center py-20 animate-in delay-1">
+    <div class="text-5xl mb-6">💰</div>
+    <p class="text-lg mb-2" style="color: var(--text-secondary);">Нет данных</p>
+    <p class="text-sm mb-8" style="color: var(--text-tertiary);">Загрузите демо-данные для анализа выручки</p>
+    <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
+</div>
+{% else %}
+
+<!-- Revenue KPIs -->
+<div class="grid grid-cols-4 gap-4 mb-6">
+    <div class="glass-card animate-in delay-1">
+        <div class="metric-label">MRR</div>
+        <div class="metric-value">{{ "{:,.0f}".format(rev_metrics.mrr) }} ₽</div>
+        <div class="metric-delta {% if rev_metrics.mrr_growth > 0 %}positive{% else %}negative{% endif %}">{{ "{:+.1f}".format(rev_metrics.mrr_growth) }}%</div>
+    </div>
+    <div class="glass-card animate-in delay-2">
+        <div class="metric-label">ARR</div>
+        <div class="metric-value">{{ "{:,.0f}".format(rev_metrics.arr) }} ₽</div>
+        <div class="metric-delta positive">Annual</div>
+    </div>
+    <div class="glass-card animate-in delay-3">
+        <div class="metric-label">Выручка</div>
+        <div class="metric-value">{{ "{:,.0f}".format(metrics.total_revenue) }} ₽</div>
+        <div class="metric-delta positive">Total</div>
+    </div>
+    <div class="glass-card animate-in delay-4">
+        <div class="metric-label">LTV (est.)</div>
+        <div class="metric-value">{{ "{:,.0f}".format(metrics.ltv) }} ₽</div>
+        <div class="metric-delta positive">Per user</div>
+    </div>
+</div>
+
+<!-- Charts Grid -->
+<div class="grid grid-cols-2 gap-4 mb-6">
+    <div class="glass-card animate-in delay-3">
+        <div class="section-title">📈 MRR Trend</div>
+        <div style="height: 280px;">
+            {{ rev_charts.mrr_trend | safe }}
+        </div>
+    </div>
+    <div class="glass-card animate-in delay-4">
+        <div class="section-title">🔮 LTV Prediction Curve</div>
+        <div style="height: 280px;">
+            {{ rev_charts.ltv_curve | safe }}
+        </div>
+    </div>
+</div>
+
+<div class="grid grid-cols-2 gap-4 mb-6">
+    <div class="glass-card animate-in delay-5">
+        <div class="section-title">🥧 Subscription Breakdown</div>
+        <div style="height: 280px;">
+            {{ rev_charts.subscription | safe }}
+        </div>
+    </div>
+    <div class="glass-card animate-in delay-5">
+        <div class="section-title">📊 Revenue by Channel</div>
+        <div style="height: 280px;">
+            {{ charts.channel | safe }}
+        </div>
+    </div>
+</div>
+
+<!-- Cohort Revenue Table -->
+<div class="glass-card animate-in delay-6">
+    <div class="section-title">👥 Cohort Revenue Analysis</div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm" style="color: var(--text-secondary);">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <th class="text-left py-3 px-2">Cohort</th>
+                    <th class="text-right py-3 px-2">M0</th>
+                    <th class="text-right py-3 px-2">M1</th>
+                    <th class="text-right py-3 px-2">M2</th>
+                    <th class="text-right py-3 px-2">M3</th>
+                    <th class="text-right py-3 px-2">M4</th>
+                    <th class="text-right py-3 px-2">M5</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rev_metrics.cohort_revenue[:6] %}
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <td class="py-3 px-2 font-medium" style="color: var(--text-primary);">{{ row.cohort }}</td>
+                    <td class="text-right py-3 px-2">{{ "{:,.0f}".format(row.get(0, 0)) }} ₽</td>
+                    <td class="text-right py-3 px-2">{{ "{:,.0f}".format(row.get(1, 0)) }} ₽</td>
+                    <td class="text-right py-3 px-2">{{ "{:,.0f}".format(row.get(2, 0)) }} ₽</td>
+                    <td class="text-right py-3 px-2">{{ "{:,.0f}".format(row.get(3, 0)) }} ₽</td>
+                    <td class="text-right py-3 px-2">{{ "{:,.0f}".format(row.get(4, 0)) }} ₽</td>
+                    <td class="text-right py-3 px-2">{{ "{:,.0f}".format(row.get(5, 0)) }} ₽</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
