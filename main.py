@@ -135,12 +135,13 @@ def calculate_revenue_metrics(df):
     df["month"] = df["date"].dt.to_period("M")
     df["year"] = df["date"].dt.year
 
-    monthly_rev = df.groupby("month")["revenue"].sum()
+    waterfall_df = monthly_rev.reset_index()
+waterfall_df["month"] = waterfall_df["month"].astype(str)  # ← string!
+rev["waterfall"] = waterfall_df.to_dict("records")
     rev["mrr"] = float(monthly_rev.iloc[-1]) if len(monthly_rev) > 0 else 0
     rev["arr"] = rev["mrr"] * 12
     rev["mrr_growth"] = float((monthly_rev.iloc[-1] - monthly_rev.iloc[-2]) / monthly_rev.iloc[-2] * 100) if len(monthly_rev) >= 2 and monthly_rev.iloc[-2] > 0 else 0
 
-    rev["waterfall"] = monthly_rev.reset_index().to_dict("records")
 
     df["order_month"] = df["date"].dt.to_period("M")
     df["cohort"] = df.groupby("user_id")["order_month"].transform("min")
