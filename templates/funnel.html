@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mb-6">
+    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-1">Воронка конверсии</h1>
+</div>
+<hr class="border-white/5 mb-6">
+
+{% if not has_data %}
+<div class="glass-card text-center py-16">
+    <p class="text-gray-400 text-lg mb-6">Нет данных</p>
+    <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
+</div>
+{% else %}
+<div class="glass-card">
+    {{ charts.funnel | safe }}
+</div>
+{% endif %}
+{% endblock %}
