@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mb-8 animate-in">
+    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">RFM Сегментация</h1>
+    <p class="text-sm" style="color: var(--text-secondary);">K-Means кластеризация пользователей (Recency, Frequency, Monetary)</p>
+</div>
+
+{% if not has_data %}
+<div class="glass-card text-center py-20 animate-in delay-1">
+    <div class="text-5xl mb-6">🎯</div>
+    <p class="text-lg mb-2" style="color: var(--text-secondary);">Нет данных</p>
+    <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
+</div>
+{% else %}
+
+<!-- RFM Metrics -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="glass-card animate-in delay-1">
+        <div class="metric-label">Champions</div>
+        <div class="metric-value" style="color: var(--accent-green);">{{ rfm | selectattr('segment_name', 'equalto', 'Champions') | list | length }}</div>
+        <div class="metric-delta positive">Лучшие клиенты</div>
+    </div>
+    <div class="glass-card animate-in delay-2">
+        <div class="metric-label">Loyal</div>
+        <div class="metric-value" style="color: var(--accent-blue);">{{ rfm | selectattr('segment_name', 'equalto', 'Loyal') | list | length }}</div>
+        <div class="metric-delta positive">Лояльные</div>
+    </div>
+    <div class="glass-card animate-in delay-3">
+        <div class="metric-label">At Risk</div>
+        <div class="metric-value" style="color: var(--accent-orange);">{{ rfm | selectattr('segment_name', 'equalto', 'At Risk') | list | length }}</div>
+        <div class="metric-delta negative">Под угрозой</div>
+    </div>
+    <div class="glass-card animate-in delay-4">
+        <div class="metric-label">Hibernating</div>
+        <div class="metric-value" style="color: var(--accent-red);">{{ rfm | selectattr('segment_name', 'equalto', 'Hibernating') | list | length }}</div>
+        <div class="metric-delta negative">Спящие</div>
+    </div>
+</div>
+
+<!-- RFM Charts -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+    <div class="glass-card animate-in delay-5">
+        <div class="section-title">📊 RFM Scatter (Recency × Frequency)</div>
+        <div class="chart-container" style="height: 300px;">
+            {{ rfm_charts.rfm_scatter | safe }}
+        </div>
+    </div>
+    <div class="glass-card animate-in delay-6">
+        <div class="section-title">🥧 Сегменты</div>
+        <div class="chart-container" style="height: 300px;">
+            {{ rfm_charts.rfm_pie | safe }}
+        </div>
+    </div>
+</div>
+
+<!-- RFM Table -->
+<div class="glass-card animate-in delay-7">
+    <div class="section-title">📋 Топ-20 пользователей по RFM</div>
+    <div class="overflow-x-auto">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <th style="text-align: left; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">User</th>
+                    <th style="text-align: right; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">Recency</th>
+                    <th style="text-align: right; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">Frequency</th>
+                    <th style="text-align: right; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">Monetary</th>
+                    <th style="text-align: left; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">Segment</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in rfm[:20] %}
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <td style="padding: 0.75rem; color: var(--text-primary); font-family: monospace; font-size: 0.8rem;">{{ user.user_id }}</td>
+                    <td style="text-align: right; padding: 0.75rem; color: var(--text-primary);">{{ user.recency }}d</td>
+                    <td style="text-align: right; padding: 0.75rem; color: var(--text-primary);">{{ user.frequency }}</td>
+                    <td style="text-align: right; padding: 0.75rem; color: var(--text-primary); font-weight: 600;">{{ "{:,.0f}".format(user.monetary) }} ₽</td>
+                    <td style="padding: 0.75rem;">
+                        <span style="padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.75rem; font-weight: 600;
+                        {% if user.segment_name == 'Champions' %}background: rgba(52,211,153,0.15); color: #34D399; border: 1px solid rgba(52,211,153,0.3);{% elif user.segment_name == 'Loyal' %}background: rgba(96,165,250,0.15); color: #60A5FA; border: 1px solid rgba(96,165,250,0.3);{% elif user.segment_name == 'At Risk' %}background: rgba(255,159,10,0.15); color: #FF9F0A; border: 1px solid rgba(255,159,10,0.3);{% else %}background: rgba(255,69,58,0.15); color: #FF453A; border: 1px solid rgba(255,69,58,0.3);{% endif %}">
+                            {{ user.segment_name }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endif %}
+{% endblock %}
