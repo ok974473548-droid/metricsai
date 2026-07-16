@@ -12,5 +12,5 @@ passlib[bcrypt]==1.7.4
 python-pptx==0.6.23
 weasyprint==62.3
 kaleido==0.2.1
-# Optional: psycopg2-binary for PostgreSQL
-# psycopg2-binary==2.9.9
+scikit-learn==1.5.0
+aiohttp==3.9.5
