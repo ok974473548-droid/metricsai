@@ -3,11 +3,14 @@
 <div class="mb-8 animate-in">
     <div class="flex items-center justify-between flex-wrap gap-4">
         <div>
-            <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">Дашборд</h1>
+            <h1 class="text-3xl font-extrabold text-white tracking-tight mb-1" style="letter-spacing: -0.03em;">Дашборд</h1>
             <p class="text-sm" style="color: var(--text-secondary);">Ключевые метрики в реальном времени</p>
         </div>
-        <div id="ws-status" class="live-indicator" style="display: none;">
-            <span class="live-dot"></span> LIVE
+        <div class="flex items-center gap-3">
+            <div id="ws-status" class="live-indicator" style="display: none;">
+                <span class="live-dot"></span> LIVE
+            </div>
+            <button onclick="simulateLiveData()" class="btn-secondary" style="font-size: 0.75rem; padding: 0.4rem 0.8rem;">🔄 Live</button>
         </div>
     </div>
 </div>
@@ -16,85 +19,59 @@
 <div class="glass-card text-center py-20 animate-in delay-1">
     <div class="text-5xl mb-6">📊</div>
     <p class="text-lg mb-2" style="color: var(--text-secondary);">Нет данных</p>
-    <p class="text-sm mb-8" style="color: var(--text-tertiary);">Загрузите демо-данные, чтобы начать</p>
+    <p class="text-sm mb-8" style="color: var(--text-tertiary);">Загрузите демо-данные или свой CSV</p>
     <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
+    <div class="mt-4">
+        <a href="/sources" class="text-sm" style="color: var(--text-secondary); text-decoration: none;">или перейдите к источникам →</a>
+    </div>
 </div>
 {% else %}
 
 <!-- Share -->
-<div class="mb-6 flex items-center gap-4 animate-in delay-1 flex-wrap">
+<div class="mb-5 flex items-center gap-3 animate-in delay-1 flex-wrap">
     <button class="btn-primary" hx-post="/share" hx-target="#share-result" hx-swap="innerHTML">
-        <span style="margin-right: 0.5rem;">🔗</span>Поделиться
-    </button>
-    <button onclick="simulateLiveData()" class="btn-secondary">
-        <span style="margin-right: 0.5rem;">🔄</span>Live
+        <span style="margin-right: 0.4rem;">🔗</span>Поделиться
     </button>
     <div id="share-result"></div>
 </div>
 
-<!-- Widget Grid (iOS Home Screen style) -->
-<div class="grid grid-cols-4 gap-4 mb-6">
-
-    <!-- Large Widget: Revenue -->
-    <div class="glass-card widget-large animate-in delay-1">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <div class="metric-label">Выручка</div>
-                <div class="metric-value" id="metric-revenue">{{ "{:,.0f}".format(metrics.total_revenue) }} ₽</div>
-            </div>
-            <div class="text-3xl">💰</div>
-        </div>
-        <div class="metric-delta positive">+12.4% vs прошлый месяц</div>
-        <div class="mt-4" style="height: 200px; opacity: 0.9;">
-            {{ charts.revenue | safe }}
-        </div>
+<!-- KPI Row 1 -->
+<div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-3">
+    <div class="metric-card animate-in delay-1">
+        <div class="metric-label">Выручка</div>
+        <div class="metric-value" id="metric-revenue">{{ "{:,.0f}".format(metrics.total_revenue) }} ₽</div>
+        <div class="metric-delta positive">▲ {{ "{:+.1f}".format(metrics.revenue_growth) }}%</div>
     </div>
-
-    <!-- Large Widget: Users -->
-    <div class="glass-card widget-large animate-in delay-2">
-        <div class="flex items-center justify-between mb-4">
-            <div>
-                <div class="metric-label">Пользователей</div>
-                <div class="metric-value" id="metric-users">{{ "{:,}".format(metrics.total_users) }}</div>
-            </div>
-            <div class="text-3xl">👥</div>
-        </div>
-        <div class="metric-delta positive">+8.2% vs прошлый месяц</div>
-        <div class="mt-4 grid grid-cols-2 gap-2">
-            <div class="metric-container" style="padding: 0.75rem;">
-                <div class="metric-label">Новые</div>
-                <div class="metric-value" style="font-size: 1.2rem;">1,240</div>
-            </div>
-            <div class="metric-container" style="padding: 0.75rem;">
-                <div class="metric-label">Вернувшиеся</div>
-                <div class="metric-value" style="font-size: 1.2rem;">3,680</div>
-            </div>
-        </div>
+    <div class="metric-card animate-in delay-1">
+        <div class="metric-label">Пользователей</div>
+        <div class="metric-value" id="metric-users">{{ "{:,}".format(metrics.total_users) }}</div>
+        <div class="metric-delta positive">▲ {{ "{:+.1f}".format(metrics.user_growth) }}%</div>
     </div>
-
-    <!-- Small Widget: ARPU -->
-    <div class="glass-card widget-small animate-in delay-3">
+    <div class="metric-card animate-in delay-2">
+        <div class="metric-label">Заказов</div>
+        <div class="metric-value">{{ "{:,}".format(metrics.total_orders) }}</div>
+        <div class="metric-delta positive">▲ Total</div>
+    </div>
+    <div class="metric-card animate-in delay-2">
         <div class="metric-label">ARPU</div>
         <div class="metric-value" id="metric-arpu">{{ "{:,.0f}".format(metrics.arpu) }} ₽</div>
-        <div class="metric-delta positive">+5.1%</div>
+        <div class="metric-delta positive">▲ +5.1%</div>
     </div>
-
-    <!-- Small Widget: AOV -->
-    <div class="glass-card widget-small animate-in delay-3">
+    <div class="metric-card animate-in delay-3">
         <div class="metric-label">AOV</div>
         <div class="metric-value">{{ "{:,.0f}".format(metrics.aov) }} ₽</div>
-        <div class="metric-delta negative">-2.3%</div>
+        <div class="metric-delta negative">▼ -2.3%</div>
     </div>
-
-    <!-- Small Widget: LTV -->
-    <div class="glass-card widget-small animate-in delay-4">
+    <div class="metric-card animate-in delay-3">
         <div class="metric-label">LTV</div>
         <div class="metric-value">{{ "{:,.0f}".format(metrics.ltv) }} ₽</div>
-        <div class="metric-delta positive">+15.7%</div>
+        <div class="metric-delta positive">▲ +15.7%</div>
     </div>
+</div>
 
-    <!-- Small Widget: LTV/CAC -->
-    <div class="glass-card widget-small animate-in delay-4">
+<!-- KPI Row 2 -->
+<div class="grid grid-cols-2 md:grid-cols-6 gap-3 mb-6">
+    <div class="metric-card animate-in delay-4">
         <div class="metric-label">LTV / CAC</div>
         <div class="metric-value" style="color: {% if metrics.ltv_cac_ratio > 3 %}var(--accent-green){% elif metrics.ltv_cac_ratio > 1 %}var(--accent-orange){% else %}var(--accent-red){% endif %}">
             {{ "{:.1f}".format(metrics.ltv_cac_ratio) }}x
@@ -103,35 +80,108 @@
             {% if metrics.ltv_cac_ratio > 3 %}✅ Healthy{% else %}⚠️ Low{% endif %}
         </div>
     </div>
-
-    <!-- Medium Widget: ARPU Trend -->
-    <div class="glass-card widget-medium animate-in delay-5">
-        <div class="metric-label mb-2">ARPU по месяцам</div>
-        <div style="height: 200px;">
-            {{ charts.arpu | safe }}
+    <div class="metric-card animate-in delay-4">
+        <div class="metric-label">D30 Retention</div>
+        <div class="metric-value">{{ "{:.1f}".format(metrics.d30_retention) }}%</div>
+        <div class="metric-delta {% if metrics.d30_retention > 20 %}positive{% else %}negative{% endif %}">
+            {% if metrics.d30_retention > 20 %}✅ Good{% else %}⚠️ Low{% endif %}
         </div>
     </div>
-
-    <!-- Medium Widget: Channels -->
-    <div class="glass-card widget-medium animate-in delay-5">
-        <div class="metric-label mb-2">Каналы</div>
-        <div style="height: 200px;">
-            {{ charts.channel | safe }}
-        </div>
+    <div class="metric-card animate-in delay-5">
+        <div class="metric-label">Avg Session</div>
+        <div class="metric-value">{{ "{:,.0f}".format(metrics.avg_session_duration) }}s</div>
+        <div class="metric-delta positive">▲ Engagement</div>
     </div>
+    <div class="metric-card animate-in delay-5">
+        <div class="metric-label">Page Views</div>
+        <div class="metric-value">{{ "{:.1f}".format(metrics.avg_page_views) }}</div>
+        <div class="metric-delta positive">▲ Per session</div>
+    </div>
+    <div class="metric-card animate-in delay-6">
+        <div class="metric-label">Overall Conv</div>
+        <div class="metric-value">{{ "{:.2f}".format(metrics.overall_conversion) }}%</div>
+        <div class="metric-delta positive">▲ Funnel</div>
+    </div>
+    <div class="metric-card animate-in delay-6">
+        <div class="metric-label">Best Channel</div>
+        <div class="metric-value" style="font-size: 1.1rem;">{{ metrics.best_channel }}</div>
+        <div class="metric-delta positive">▲ By ROI</div>
+    </div>
+</div>
 
+<!-- Charts Row 1 -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div class="glass-card animate-in delay-1">
+        <div class="section-title">📈 Revenue Trend</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.revenue | safe }}</div>
+    </div>
+    <div class="glass-card animate-in delay-2">
+        <div class="section-title">💰 Profit Trend</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.profit | safe }}</div>
+    </div>
+</div>
+
+<!-- Charts Row 2 -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div class="glass-card animate-in delay-3">
+        <div class="section-title">📊 ARPU по месяцам</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.arpu | safe }}</div>
+    </div>
+    <div class="glass-card animate-in delay-4">
+        <div class="section-title">⚖️ CAC vs LTV</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.cac_ltv | safe }}</div>
+    </div>
+</div>
+
+<!-- Charts Row 3 -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div class="glass-card animate-in delay-5">
+        <div class="section-title">📺 Revenue by Channel</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.channel | safe }}</div>
+    </div>
+    <div class="glass-card animate-in delay-5">
+        <div class="section-title">💸 CAC by Channel</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.cac_channel | safe }}</div>
+    </div>
+</div>
+
+<!-- Charts Row 4 -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div class="glass-card animate-in delay-6">
+        <div class="section-title">📱 Device Breakdown</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.device | safe }}</div>
+    </div>
+    <div class="glass-card animate-in delay-6">
+        <div class="section-title">🌍 Revenue by Country</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.country | safe }}</div>
+    </div>
+</div>
+
+<!-- Charts Row 5 -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div class="glass-card animate-in delay-7">
+        <div class="section-title">🔁 Retention Curve</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.retention | safe }}</div>
+    </div>
+    <div class="glass-card animate-in delay-7">
+        <div class="section-title">🌡️ Revenue Heatmap</div>
+        <div class="chart-container" style="height: 220px;">{{ charts.heatmap | safe }}</div>
+    </div>
 </div>
 
 <!-- Full-width Funnel -->
-<div class="glass-card animate-in delay-6">
+<div class="glass-card animate-in delay-8 mb-4">
     <div class="section-title">🔻 Воронка конверсии</div>
-    <div style="height: 300px;">
-        {{ charts.funnel | safe }}
-    </div>
+    <div class="chart-container" style="height: 280px;">{{ charts.funnel | safe }}</div>
+</div>
+
+<!-- Session Distribution -->
+<div class="glass-card animate-in delay-8">
+    <div class="section-title">⏱️ Session Duration Distribution</div>
+    <div class="chart-container" style="height: 220px;">{{ charts.session_dist | safe }}</div>
 </div>
 
 <script>
-// Live update handler for dashboard metrics
 window.addEventListener('metricsUpdate', function(e) {
     const m = e.detail.metrics;
     const revEl = document.getElementById('metric-revenue');
@@ -148,13 +198,11 @@ document.body.addEventListener('htmx:afterRequest', function(evt) {
             var data = JSON.parse(evt.detail.xhr.response);
             var result = document.getElementById('share-result');
             if (data.url) {
-                result.innerHTML = '<div class="glass-card flex items-center gap-3 py-2 px-3"><input type="text" value="' + window.location.origin + data.url + '" readonly class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white w-72"><button onclick="navigator.clipboard.writeText(window.location.origin + '' + data.url + ''); this.innerHTML='<span style=margin-right:0.3rem>✅</span>Скопировано'; this.style.color='#34D399'; setTimeout(()=>{this.innerHTML='<span style=margin-right:0.3rem>📋</span>Копировать'; this.style.color='';}, 2000);" class="btn-secondary text-sm">📋 Копировать</button></div>';
+                result.innerHTML = '<div class="glass-card flex items-center gap-3 py-2 px-3"><input type="text" value="' + window.location.origin + data.url + '" readonly class="bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm font-mono text-white w-72"><button onclick="navigator.clipboard.writeText(window.location.origin + \'' + data.url + '\'); this.innerHTML=\'<span style=margin-right:0.3rem>✅</span>Скопировано\'; this.style.color=\'#34D399\'; setTimeout(()=>{this.innerHTML=\'<span style=margin-right:0.3rem>📋</span>Копировать\'; this.style.color=\'\';}, 2000);" class="btn-secondary text-sm">📋 Копировать</button></div>';
             } else if (data.error) {
                 result.innerHTML = '<div class="glass-card text-red-400 p-3">' + data.error + '</div>';
             }
-        } catch(e) {
-            console.error('Share response parse error:', e);
-        }
+        } catch(e) { console.error('Share error:', e); }
     }
 });
 </script>
