@@ -3,57 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>MetricsAI — Product & Marketing Analytics</title>
+    <title>MetricsAI v4.1 — AI-Powered Analytics</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg-primary: #000000;
-            --bg-secondary: #0C0C0E;
-            --bg-tertiary: #1C1C1E;
-            --glass-bg: rgba(28, 28, 30, 0.6);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --glass-border-hover: rgba(255, 255, 255, 0.15);
-            --text-primary: #F5F5F7;
-            --text-secondary: #86868B;
-            --text-tertiary: #636366;
-            --accent-blue: #0A84FF;
-            --accent-green: #30D158;
-            --accent-orange: #FF9F0A;
-            --accent-red: #FF453A;
-            --accent-purple: #BF5AF2;
-            --accent-teal: #5AC8FA;
-            --accent-indigo: #5E5CE6;
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-card: rgba(20, 20, 30, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.06);
+            --glass-border-hover: rgba(255, 255, 255, 0.12);
+            --text-primary: #f0f0f5;
+            --text-secondary: #8b8b9a;
+            --text-tertiary: #5a5a6a;
+            --accent-green: #22c55e;
+            --accent-blue: #3b82f6;
+            --accent-purple: #a855f7;
+            --accent-orange: #f97316;
+            --accent-red: #ef4444;
+            --accent-teal: #14b8a6;
+            --accent-indigo: #6366f1;
+            --accent-pink: #ec4899;
+            --accent-cyan: #06b6d4;
+            --gradient-1: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-2: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            --gradient-3: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
         body {
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             background: var(--bg-primary);
             color: var(--text-primary);
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
-            padding-bottom: 80px; /* Space for mobile bottom nav */
+            min-height: 100vh;
+            overflow-x: hidden;
         }
 
-        /* iOS-style scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
 
-        /* Glass Card */
+        /* Glass Card v2 */
         .glass-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            background: var(--bg-card);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
             border: 1px solid var(--glass-border);
-            border-radius: 20px;
+            border-radius: 24px;
             padding: 1.5rem;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.5s cubic-bezier(0.23, 1, 0.32, 1);
             position: relative;
             overflow: hidden;
         }
@@ -61,200 +66,270 @@
             content: '';
             position: absolute;
             top: 0; left: 0; right: 0; height: 1px;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent);
+        }
+        .glass-card::after {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%; width: 200%; height: 200%;
+            background: radial-gradient(circle at 30% 30%, rgba(99, 102, 241, 0.03), transparent 70%);
+            pointer-events: none;
         }
         .glass-card:hover {
             border-color: var(--glass-border-hover);
-            transform: translateY(-2px);
-            box-shadow: 0 20px 60px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.05);
+            transform: translateY(-4px) scale(1.005);
+            box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05);
         }
 
-        /* Widget sizes */
-        .widget-large { grid-column: span 2; grid-row: span 2; }
-        .widget-medium { grid-column: span 2; grid-row: span 1; }
-        .widget-small { grid-column: span 1; grid-row: span 1; }
-
-        /* Metric container */
-        .metric-container {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
+        /* Metric Card */
+        .metric-card {
+            background: var(--bg-card);
+            backdrop-filter: blur(24px);
             border: 1px solid var(--glass-border);
             border-radius: 20px;
-            padding: 1.25rem;
-            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            padding: 1.25rem 1.5rem;
+            transition: all 0.4s cubic-bezier(0.23, 1, 0.32, 1);
+            position: relative;
+            overflow: hidden;
         }
-        .metric-container:hover {
+        .metric-card:hover {
             border-color: var(--glass-border-hover);
-            background: rgba(28, 28, 30, 0.8);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
         }
-        .metric-value {
-            font-size: 1.8rem;
-            font-weight: 700;
+        .metric-card .metric-value {
+            font-size: 1.6rem;
+            font-weight: 800;
             color: var(--text-primary);
-            letter-spacing: -0.02em;
-            line-height: 1.2;
+            letter-spacing: -0.03em;
+            line-height: 1.1;
         }
-        .metric-label {
-            font-size: 0.7rem;
+        .metric-card .metric-label {
+            font-size: 0.65rem;
             color: var(--text-secondary);
-            font-weight: 500;
-            margin-top: 0.25rem;
-            text-transform: uppercase;
-            letter-spacing: 0.1em;
-        }
-        .metric-delta {
-            font-size: 0.8rem;
             font-weight: 600;
-            margin-top: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            margin-bottom: 0.5rem;
+        }
+        .metric-card .metric-delta {
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-top: 0.4rem;
+            display: flex;
+            align-items: center;
+            gap: 4px;
         }
         .metric-delta.positive { color: var(--accent-green); }
         .metric-delta.negative { color: var(--accent-red); }
 
         /* Buttons */
         .btn-primary {
-            background: var(--text-primary);
-            color: var(--bg-primary);
-            border-radius: 12px;
-            padding: 0.6rem 1.5rem;
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border-radius: 14px;
+            padding: 0.65rem 1.5rem;
             font-weight: 600;
             font-size: 0.85rem;
             border: none;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
             letter-spacing: -0.01em;
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.3);
+            position: relative;
+            overflow: hidden;
         }
         .btn-primary:hover {
-            transform: translateY(-1px);
-            box-shadow: 0 4px 20px rgba(255,255,255,0.15);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(99, 102, 241, 0.4);
         }
-        .btn-primary:active { transform: scale(0.98); }
+        .btn-primary:active { transform: scale(0.97); }
 
         .btn-secondary {
-            background: rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.04);
             color: var(--text-primary);
             border: 1px solid var(--glass-border);
-            border-radius: 12px;
-            padding: 0.6rem 1.5rem;
+            border-radius: 14px;
+            padding: 0.65rem 1.5rem;
             font-weight: 600;
             font-size: 0.85rem;
             cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            transition: all 0.3s;
         }
         .btn-secondary:hover {
-            background: rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.08);
             border-color: var(--glass-border-hover);
         }
 
         /* Sidebar */
         .sidebar {
-            background: linear-gradient(180deg, #000000 0%, #0C0C0E 100%);
+            background: linear-gradient(180deg, #0a0a0f 0%, #12121a 100%);
             border-right: 1px solid var(--glass-border);
         }
         .nav-item {
-            padding: 0.6rem 1rem;
-            border-radius: 10px;
+            padding: 0.55rem 0.9rem;
+            border-radius: 14px;
             color: var(--text-secondary);
             font-weight: 500;
-            font-size: 0.85rem;
-            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            font-size: 0.82rem;
+            transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
             display: flex;
             align-items: center;
-            gap: 0.75rem;
+            gap: 0.7rem;
             text-decoration: none;
-            margin-bottom: 0.25rem;
+            margin-bottom: 0.15rem;
+            position: relative;
         }
         .nav-item:hover {
-            background: rgba(255,255,255,0.06);
+            background: rgba(255,255,255,0.04);
             color: var(--text-primary);
         }
         .nav-item.active {
-            background: rgba(255,255,255,0.1);
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1));
             color: var(--text-primary);
             font-weight: 600;
+            border: 1px solid rgba(99, 102, 241, 0.2);
         }
-        .nav-item .nav-icon { font-size: 1.1rem; }
+        .nav-item .nav-icon { font-size: 1.1rem; filter: grayscale(0.3); transition: all 0.3s; }
+        .nav-item:hover .nav-icon, .nav-item.active .nav-icon { filter: grayscale(0); transform: scale(1.1); }
 
         /* Animations */
         @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from { opacity: 0; transform: translateY(30px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
         }
         .animate-in {
-            animation: fadeInUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            animation: fadeInUp 0.7s cubic-bezier(0.23, 1, 0.32, 1) forwards;
             opacity: 0;
         }
-        .delay-1 { animation-delay: 0.1s; }
-        .delay-2 { animation-delay: 0.2s; }
-        .delay-3 { animation-delay: 0.3s; }
-        .delay-4 { animation-delay: 0.4s; }
-        .delay-5 { animation-delay: 0.5s; }
-        .delay-6 { animation-delay: 0.6s; }
+        .delay-1 { animation-delay: 0.08s; }
+        .delay-2 { animation-delay: 0.16s; }
+        .delay-3 { animation-delay: 0.24s; }
+        .delay-4 { animation-delay: 0.32s; }
+        .delay-5 { animation-delay: 0.40s; }
+        .delay-6 { animation-delay: 0.48s; }
+        .delay-7 { animation-delay: 0.56s; }
+        .delay-8 { animation-delay: 0.64s; }
+
+        /* Section title */
+        .section-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 1rem;
+            letter-spacing: -0.01em;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        /* Input */
+        input, select, textarea {
+            background: rgba(255,255,255,0.03) !important;
+            border: 1px solid var(--glass-border) !important;
+            border-radius: 14px !important;
+            color: var(--text-primary) !important;
+            padding: 0.75rem 1rem !important;
+            font-family: 'Inter', sans-serif !important;
+            transition: all 0.3s !important;
+            font-size: 0.85rem;
+        }
+        input:focus, select:focus, textarea:focus {
+            border-color: rgba(99, 102, 241, 0.4) !important;
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1) !important;
+            background: rgba(255,255,255,0.05) !important;
+        }
+
+        /* Chart container */
+        .chart-container {
+            width: 100%;
+            overflow: hidden;
+            position: relative;
+            border-radius: 16px;
+        }
+        .chart-container iframe, .chart-container .js-plotly-plot {
+            max-width: 100% !important;
+        }
+
+        /* Live indicator */
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.7rem;
+            color: var(--accent-green);
+            font-weight: 700;
+            padding: 0.3rem 0.8rem;
+            background: rgba(34, 197, 94, 0.08);
+            border-radius: 20px;
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .live-dot {
+            width: 6px; height: 6px;
+            background: var(--accent-green);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 0 0 rgba(34,197,94,0.4); }
+            50% { opacity: 0.7; transform: scale(1.3); box-shadow: 0 0 0 6px rgba(34,197,94,0); }
+        }
+
+        /* Auth badge */
+        .auth-badge {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255,255,255,0.03);
+            border-radius: 14px;
+            border: 1px solid var(--glass-border);
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .auth-badge .user-name {
+            color: var(--text-primary);
+            font-weight: 600;
+        }
 
         /* AI Insight */
         .ai-insight {
-            background: var(--glass-bg);
-            border-left: 3px solid var(--accent-blue);
-            border-radius: 0 16px 16px 0;
-            padding: 1.25rem;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.05));
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 20px;
+            padding: 1.5rem;
             margin: 0.75rem 0;
             backdrop-filter: blur(20px);
+            position: relative;
+            overflow: hidden;
+        }
+        .ai-insight::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 3px; height: 100%;
+            background: linear-gradient(180deg, #6366f1, #a855f7);
+            border-radius: 20px 0 0 20px;
         }
         .ai-header {
             display: flex;
             align-items: center;
             gap: 0.5rem;
             margin-bottom: 0.75rem;
-            font-weight: 600;
-            font-size: 0.85rem;
-            color: var(--accent-blue);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* Public banner */
-        .public-banner {
-            background: rgba(48, 209, 88, 0.08);
-            border: 1px solid rgba(48, 209, 88, 0.2);
-            border-radius: 16px;
-            padding: 1rem 1.25rem;
-            margin-bottom: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-        }
-
-        /* Section title */
-        .section-title {
-            font-size: 1.1rem;
             font-weight: 700;
-            color: var(--text-primary);
-            margin-bottom: 1rem;
-            letter-spacing: -0.01em;
+            font-size: 0.8rem;
+            color: var(--accent-purple);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
         }
 
-        /* Input styling */
-        input, select, textarea {
-            background: rgba(255,255,255,0.05) !important;
-            border: 1px solid var(--glass-border) !important;
-            border-radius: 12px !important;
-            color: var(--text-primary) !important;
-            padding: 0.75rem 1rem !important;
-            font-family: 'Inter', sans-serif !important;
-            transition: all 0.3s !important;
-        }
-        input:focus, select:focus, textarea:focus {
-            border-color: var(--accent-blue) !important;
-            outline: none !important;
-            box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15) !important;
-        }
-
-        /* Plotly dark override */
-        .js-plotly-plot .plotly .main-svg { background: transparent !important; }
-
-        /* ==================== MOBILE RESPONSIVE ==================== */
-
-        /* Bottom Navigation (mobile only) */
+        /* Mobile */
         .bottom-nav {
             display: none;
             position: fixed;
@@ -262,9 +337,8 @@
             left: 0;
             right: 0;
             height: 70px;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(20px) saturate(180%);
-            -webkit-backdrop-filter: blur(20px) saturate(180%);
+            background: rgba(10, 10, 15, 0.92);
+            backdrop-filter: blur(24px) saturate(180%);
             border-top: 1px solid var(--glass-border);
             z-index: 100;
             padding: 0 0.5rem;
@@ -285,15 +359,10 @@
             transition: all 0.2s;
             border-radius: 12px;
         }
-        .bottom-nav-item .nav-icon { font-size: 1.4rem; }
-        .bottom-nav-item.active {
-            color: var(--accent-blue);
-        }
-        .bottom-nav-item:active {
-            background: rgba(255,255,255,0.05);
-        }
+        .bottom-nav-item .nav-icon { font-size: 1.3rem; transition: all 0.2s; }
+        .bottom-nav-item.active { color: var(--accent-indigo); }
+        .bottom-nav-item:active { background: rgba(255,255,255,0.03); }
 
-        /* Mobile header */
         .mobile-header {
             display: none;
             position: fixed;
@@ -301,8 +370,8 @@
             left: 0;
             right: 0;
             height: 56px;
-            background: rgba(0, 0, 0, 0.85);
-            backdrop-filter: blur(20px);
+            background: rgba(10, 10, 15, 0.92);
+            backdrop-filter: blur(24px);
             border-bottom: 1px solid var(--glass-border);
             z-index: 100;
             align-items: center;
@@ -310,95 +379,63 @@
             padding: 0 1rem;
         }
 
-        /* Live indicator */
-        .live-indicator {
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            font-size: 0.75rem;
-            color: var(--accent-green);
-            font-weight: 600;
-            padding: 0.25rem 0.75rem;
-            background: rgba(48, 209, 88, 0.1);
-            border-radius: 20px;
-            border: 1px solid rgba(48, 209, 88, 0.2);
-        }
-        .live-dot {
-            width: 6px;
-            height: 6px;
-            background: var(--accent-green);
-            border-radius: 50%;
-            animation: pulse 2s infinite;
-        }
-        @keyframes pulse {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
-        }
-
-        /* Auth header */
-        .auth-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            padding: 0.5rem 1rem;
-            background: rgba(255,255,255,0.03);
-            border-radius: 12px;
-            border: 1px solid var(--glass-border);
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-        .auth-header .user-name {
-            color: var(--text-primary);
-            font-weight: 600;
-        }
-
-        /* ==================== RESPONSIVE BREAKPOINTS ==================== */
+        /* Responsive */
         @media (max-width: 1024px) {
             .widget-large { grid-column: span 2; grid-row: span 1; }
             .widget-medium { grid-column: span 2; }
+            .widget-full { grid-column: span 2; }
         }
-
         @media (max-width: 768px) {
-            /* Hide sidebar on mobile */
             .sidebar { display: none; }
-
-            /* Adjust main content */
-            .main-content { margin-left: 0 !important; padding: 1rem !important; padding-top: 72px !important; }
-
-            /* Show mobile elements */
+            .main-content { margin-left: 0 !important; padding: 1rem !important; padding-top: 72px !important; padding-bottom: 80px !important; }
             .bottom-nav { display: flex; }
             .mobile-header { display: flex; }
-
-            /* Grid adjustments */
             .grid { grid-template-columns: 1fr !important; }
-            .widget-large, .widget-medium, .widget-small { grid-column: span 1 !important; }
-
-            /* Metric value sizing */
-            .metric-value { font-size: 1.4rem; }
-
-            /* Glass card padding */
-            .glass-card { padding: 1rem; border-radius: 16px; }
-
-            /* Section title */
-            h1 { font-size: 1.75rem !important; }
-
-            /* Auth header mobile */
-            .auth-header { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
+            .widget-large, .widget-medium, .widget-small, .widget-full { grid-column: span 1 !important; }
+            .metric-card .metric-value { font-size: 1.3rem; }
+            .glass-card { padding: 1rem; border-radius: 20px; }
+            h1 { font-size: 1.6rem !important; }
+            .auth-badge { padding: 0.4rem 0.75rem; font-size: 0.75rem; }
         }
-
         @media (min-width: 769px) {
             .bottom-nav { display: none !important; }
             .mobile-header { display: none !important; }
         }
+
+        /* Gradient text */
+        .gradient-text {
+            background: linear-gradient(135deg, #667eea 0%, #f093fb 50%, #f5576c 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        /* Badge */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.2rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+        .badge-green { background: rgba(34, 197, 94, 0.12); color: #22c55e; border: 1px solid rgba(34, 197, 94, 0.25); }
+        .badge-blue { background: rgba(59, 130, 246, 0.12); color: #3b82f6; border: 1px solid rgba(59, 130, 246, 0.25); }
+        .badge-orange { background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.25); }
+        .badge-red { background: rgba(239, 68, 68, 0.12); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.25); }
+        .badge-purple { background: rgba(168, 85, 247, 0.12); color: #a855f7; border: 1px solid rgba(168, 85, 247, 0.25); }
+
+        /* Plotly override */
+        .js-plotly-plot .plotly .main-svg { background: transparent !important; }
     </style>
 </head>
 <body class="min-h-screen">
-    <!-- Mobile Header -->
     <div class="mobile-header">
         <div class="text-xl font-extrabold text-white" style="letter-spacing: -0.03em;">{{ white_label.logo_text }}</div>
         <div class="flex items-center gap-2">
             {% if user %}
-            <div class="auth-header">
+            <div class="auth-badge">
                 <span>👤</span>
                 <span class="user-name">{{ user.username }}</span>
             </div>
@@ -407,23 +444,24 @@
     </div>
 
     <div class="flex">
-        <!-- Sidebar (desktop) -->
-        <div class="sidebar fixed left-0 top-0 h-screen w-64 p-6 flex flex-col z-50">
-            <div class="flex items-center justify-between mb-10">
-                <div class="text-2xl font-extrabold text-white tracking-tight" style="letter-spacing: -0.03em;">{{ white_label.logo_text }}</div>
+        <div class="sidebar fixed left-0 top-0 h-screen w-60 p-5 flex flex-col z-50">
+            <div class="flex items-center justify-between mb-8">
+                <div class="text-2xl font-extrabold text-white tracking-tight" style="letter-spacing: -0.03em;">
+                    <span class="gradient-text">{{ white_label.logo_text }}</span>
+                </div>
             </div>
 
             {% if user %}
-            <div class="auth-header mb-6">
-                <span>👤</span>
+            <div class="auth-badge mb-5">
+                <span style="font-size: 1.1rem;">👤</span>
                 <div>
                     <div class="user-name">{{ user.username }}</div>
-                    <div style="font-size: 0.7rem; color: var(--text-tertiary);">{{ user.email }}</div>
+                    <div style="font-size: 0.65rem; color: var(--text-tertiary);">{{ user.email }}</div>
                 </div>
             </div>
             {% endif %}
 
-            <nav class="flex-1 space-y-1">
+            <nav class="flex-1 space-y-0.5">
                 <a href="/" class="nav-item {% if page == 'dashboard' %}active{% endif %}"><span class="nav-icon">📊</span> Дашборд</a>
                 <a href="/sources" class="nav-item {% if page == 'sources' %}active{% endif %}"><span class="nav-icon">📥</span> Источники</a>
                 <a href="/revenue" class="nav-item {% if page == 'revenue' %}active{% endif %}"><span class="nav-icon">💰</span> Revenue</a>
@@ -431,10 +469,12 @@
                 <a href="/ai" class="nav-item {% if page == 'ai' %}active{% endif %}"><span class="nav-icon">🤖</span> AI</a>
                 <a href="/ab" class="nav-item {% if page == 'ab' %}active{% endif %}"><span class="nav-icon">⚖️</span> A/B</a>
                 <a href="/builder" class="nav-item {% if page == 'builder' %}active{% endif %}"><span class="nav-icon">⚡</span> Builder</a>
+                <a href="/rfm" class="nav-item {% if page == 'rfm' %}active{% endif %}"><span class="nav-icon">🎯</span> RFM</a>
+                <a href="/alerts" class="nav-item {% if page == 'alerts' %}active{% endif %}"><span class="nav-icon">🚨</span> Alerts</a>
                 <a href="/export" class="nav-item {% if page == 'export' %}active{% endif %}"><span class="nav-icon">🖨️</span> Export</a>
             </nav>
 
-            <div class="mt-auto space-y-3">
+            <div class="mt-auto space-y-2.5">
                 {% if user %}
                 <form action="/logout" method="post">
                     <button type="submit" class="btn-secondary w-full text-center" style="font-size: 0.8rem;">🚪 Выйти</button>
@@ -443,105 +483,58 @@
                 <a href="/login" class="btn-primary w-full text-center block" style="font-size: 0.8rem; text-decoration: none;">🔐 Войти</a>
                 <a href="/register" class="btn-secondary w-full text-center block" style="font-size: 0.8rem; text-decoration: none;">✨ Регистрация</a>
                 {% endif %}
-                <div class="text-xs mt-4" style="color: var(--text-tertiary);">MetricsAI v3.1<br>Apple Design</div>
+                <div class="text-xs mt-3 text-center" style="color: var(--text-tertiary);">MetricsAI v4.1<br><span style="font-size: 0.6rem; opacity: 0.7;">AI-Powered Analytics</span></div>
             </div>
         </div>
 
-        <!-- Main Content -->
-        <div class="main-content ml-64 flex-1 p-8" style="background: linear-gradient(180deg, #000000 0%, #0C0C0E 100%); min-height: 100vh;">
+        <div class="main-content ml-60 flex-1 p-8" style="background: linear-gradient(180deg, #0a0a0f 0%, #12121a 100%); min-height: 100vh;">
             {% block content %}{% endblock %}
         </div>
     </div>
 
-    <!-- Bottom Navigation (mobile) -->
     <nav class="bottom-nav">
-        <a href="/" class="bottom-nav-item {% if page == 'dashboard' %}active{% endif %}">
-            <span class="nav-icon">📊</span>
-            <span>Дашборд</span>
-        </a>
-        <a href="/sources" class="bottom-nav-item {% if page == 'sources' %}active{% endif %}">
-            <span class="nav-icon">📥</span>
-            <span>Данные</span>
-        </a>
-        <a href="/revenue" class="bottom-nav-item {% if page == 'revenue' %}active{% endif %}">
-            <span class="nav-icon">💰</span>
-            <span>Revenue</span>
-        </a>
-        <a href="/ai" class="bottom-nav-item {% if page == 'ai' %}active{% endif %}">
-            <span class="nav-icon">🤖</span>
-            <span>AI</span>
-        </a>
-        <a href="/export" class="bottom-nav-item {% if page == 'export' %}active{% endif %}">
-            <span class="nav-icon">🖨️</span>
-            <span>Export</span>
-        </a>
+        <a href="/" class="bottom-nav-item {% if page == 'dashboard' %}active{% endif %}"><span class="nav-icon">📊</span><span>Дашборд</span></a>
+        <a href="/sources" class="bottom-nav-item {% if page == 'sources' %}active{% endif %}"><span class="nav-icon">📥</span><span>Данные</span></a>
+        <a href="/revenue" class="bottom-nav-item {% if page == 'revenue' %}active{% endif %}"><span class="nav-icon">💰</span><span>Revenue</span></a>
+        <a href="/ai" class="bottom-nav-item {% if page == 'ai' %}active{% endif %}"><span class="nav-icon">🤖</span><span>AI</span></a>
+        <a href="/export" class="bottom-nav-item {% if page == 'export' %}active{% endif %}"><span class="nav-icon">🖨️</span><span>Export</span></a>
     </nav>
 
-    <!-- WebSocket Live Script -->
     <script>
     (function() {
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = wsProtocol + '//' + window.location.host + '/ws';
         let ws = null;
         let reconnectTimer = null;
-
         function connectWS() {
             ws = new WebSocket(wsUrl);
             ws.onopen = function() {
-                console.log('🔌 WebSocket connected');
+                console.log('WebSocket connected');
                 ws.send(JSON.stringify({action: 'subscribe_metrics'}));
-                // Show live indicator if exists
                 const indicator = document.getElementById('ws-status');
-                if (indicator) {
-                    indicator.innerHTML = '<span class="live-dot"></span> LIVE';
-                    indicator.style.display = 'inline-flex';
-                }
+                if (indicator) { indicator.innerHTML = '<span class="live-dot"></span> LIVE'; indicator.style.display = 'inline-flex'; }
             };
             ws.onmessage = function(event) {
                 const msg = JSON.parse(event.data);
                 if (msg.type === 'metrics_update') {
-                    console.log('📡 Live metrics update:', msg);
-                    // Dispatch custom event for pages to handle
                     window.dispatchEvent(new CustomEvent('metricsUpdate', {detail: msg}));
-                    // Flash update indicator
                     const indicator = document.getElementById('ws-status');
-                    if (indicator) {
-                        indicator.style.background = 'rgba(48, 209, 88, 0.3)';
-                        setTimeout(() => {
-                            indicator.style.background = 'rgba(48, 209, 88, 0.1)';
-                        }, 500);
-                    }
+                    if (indicator) { indicator.style.background = 'rgba(34, 197, 94, 0.2)'; setTimeout(() => { indicator.style.background = 'rgba(34, 197, 94, 0.08)'; }, 500); }
                 }
             };
             ws.onclose = function() {
-                console.log('🔌 WebSocket disconnected, reconnecting...');
                 const indicator = document.getElementById('ws-status');
-                if (indicator) {
-                    indicator.innerHTML = '<span style="color: var(--accent-red)">●</span> OFFLINE';
-                }
+                if (indicator) { indicator.innerHTML = '<span style="color: var(--accent-red)">●</span> OFFLINE'; }
                 if (reconnectTimer) clearTimeout(reconnectTimer);
                 reconnectTimer = setTimeout(connectWS, 3000);
             };
-            ws.onerror = function(err) {
-                console.error('WebSocket error:', err);
-                ws.close();
-            };
+            ws.onerror = function(err) { ws.close(); };
         }
-
-        // Connect on page load
         if (!window.location.pathname.includes('/login') && !window.location.pathname.includes('/register')) {
             connectWS();
         }
-
-        // Simulate live data button handler
         window.simulateLiveData = function() {
-            fetch('/simulate-live', {method: 'POST'})
-                .then(r => r.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log('✅ Live data simulated');
-                    }
-                });
+            fetch('/simulate-live', {method: 'POST'}).then(r => r.json()).then(data => { if (data.success) console.log('Live data simulated'); });
         };
     })();
     </script>
