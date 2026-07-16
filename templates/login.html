@@ -7,73 +7,15 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-primary: #000000;
-            --glass-bg: rgba(28, 28, 30, 0.6);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --text-primary: #F5F5F7;
-            --text-secondary: #86868B;
-            --accent-blue: #0A84FF;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        .glass-card {
-            background: var(--glass-bg);
-            backdrop-filter: blur(20px) saturate(180%);
-            border: 1px solid var(--glass-border);
-            border-radius: 24px;
-            padding: 2.5rem;
-            width: 100%;
-            max-width: 420px;
-        }
-        input {
-            background: rgba(255,255,255,0.05) !important;
-            border: 1px solid var(--glass-border) !important;
-            border-radius: 12px !important;
-            color: var(--text-primary) !important;
-            padding: 0.875rem 1rem !important;
-            width: 100%;
-            font-family: 'Inter', sans-serif;
-            transition: all 0.3s;
-        }
-        input:focus {
-            border-color: var(--accent-blue) !important;
-            outline: none !important;
-            box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15) !important;
-        }
-        .btn-primary {
-            background: var(--text-primary);
-            color: var(--bg-primary);
-            border-radius: 12px;
-            padding: 0.875rem;
-            font-weight: 600;
-            font-size: 0.9rem;
-            border: none;
-            cursor: pointer;
-            width: 100%;
-            transition: all 0.3s;
-        }
+        :root { --bg-primary: #000000; --glass-bg: rgba(28, 28, 30, 0.6); --glass-border: rgba(255, 255, 255, 0.08); --text-primary: #F5F5F7; --text-secondary: #86868B; --accent-blue: #0A84FF; }
+        body { font-family: 'Inter', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; display: flex; align-items: center; justify-content: center; }
+        .glass-card { background: var(--glass-bg); backdrop-filter: blur(20px) saturate(180%); border: 1px solid var(--glass-border); border-radius: 24px; padding: 2.5rem; width: 100%; max-width: 420px; }
+        input { background: rgba(255,255,255,0.05) !important; border: 1px solid var(--glass-border) !important; border-radius: 12px !important; color: var(--text-primary) !important; padding: 0.875rem 1rem !important; width: 100%; font-family: 'Inter', sans-serif; transition: all 0.3s; }
+        input:focus { border-color: var(--accent-blue) !important; outline: none !important; box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.15) !important; }
+        .btn-primary { background: var(--text-primary); color: var(--bg-primary); border-radius: 12px; padding: 0.875rem; font-weight: 600; font-size: 0.9rem; border: none; cursor: pointer; width: 100%; transition: all 0.3s; }
         .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(255,255,255,0.15); }
-        .error-msg {
-            background: rgba(255, 69, 58, 0.1);
-            border: 1px solid rgba(255, 69, 58, 0.2);
-            color: #FF453A;
-            padding: 0.75rem 1rem;
-            border-radius: 12px;
-            font-size: 0.85rem;
-            margin-bottom: 1rem;
-        }
-        @keyframes fadeInUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
+        .error-msg { background: rgba(255, 69, 58, 0.1); border: 1px solid rgba(255, 69, 58, 0.2); color: #FF453A; padding: 0.75rem 1rem; border-radius: 12px; font-size: 0.85rem; margin-bottom: 1rem; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-in { animation: fadeInUp 0.6s ease forwards; opacity: 0; }
     </style>
 </head>
@@ -83,30 +25,14 @@
             <div class="text-4xl font-extrabold text-white mb-2" style="letter-spacing: -0.03em;">MetricsAI</div>
             <div class="text-sm" style="color: var(--text-secondary);">Вход в аналитику</div>
         </div>
-
-        {% if error %}
-        <div class="error-msg">{{ error }}</div>
-        {% endif %}
-
+        {% if error %}<div class="error-msg">{{ error }}</div>{% endif %}
         <form action="/login" method="post" class="space-y-4">
-            <div>
-                <label class="block text-sm mb-2" style="color: var(--text-secondary);">Логин или Email</label>
-                <input type="text" name="username" placeholder="username или email" required>
-            </div>
-            <div>
-                <label class="block text-sm mb-2" style="color: var(--text-secondary);">Пароль</label>
-                <input type="password" name="password" placeholder="••••••••" required>
-            </div>
+            <div><label class="block text-sm mb-2" style="color: var(--text-secondary);">Логин или Email</label><input type="text" name="username" placeholder="username или email" required></div>
+            <div><label class="block text-sm mb-2" style="color: var(--text-secondary);">Пароль</label><input type="password" name="password" placeholder="••••••••" required></div>
             <button type="submit" class="btn-primary">🔐 Войти</button>
         </form>
-
-        <div class="text-center mt-6 text-sm" style="color: var(--text-secondary);">
-            Нет аккаунта? <a href="/register" style="color: var(--accent-blue); text-decoration: none; font-weight: 600;">Зарегистрироваться</a>
-        </div>
-
-        <div class="text-center mt-4">
-            <a href="/" style="color: var(--text-secondary); font-size: 0.8rem; text-decoration: none;">← Продолжить без входа</a>
-        </div>
+        <div class="text-center mt-6 text-sm" style="color: var(--text-secondary);">Нет аккаунта? <a href="/register" style="color: var(--accent-blue); text-decoration: none; font-weight: 600;">Зарегистрироваться</a></div>
+        <div class="text-center mt-4"><a href="/" style="color: var(--text-secondary); font-size: 0.8rem; text-decoration: none;">← Продолжить без входа</a></div>
     </div>
 </body>
 </html>
