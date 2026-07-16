@@ -7,29 +7,17 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg-primary: #000000;
-            --glass-bg: rgba(28, 28, 30, 0.6);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --text-primary: #F5F5F7;
-            --text-secondary: #86868B;
-            --accent-green: #30D158;
-            --accent-orange: #FF9F0A;
-            --accent-red: #FF453A;
-        }
+        :root { --bg-primary: #000000; --glass-bg: rgba(28, 28, 30, 0.6); --glass-border: rgba(255, 255, 255, 0.08); --text-primary: #F5F5F7; --text-secondary: #86868B; --accent-green: #30D158; --accent-orange: #FF9F0A; --accent-red: #FF453A; }
         body { font-family: 'Inter', -apple-system, sans-serif; background: var(--bg-primary); color: var(--text-primary); -webkit-font-smoothing: antialiased; }
         .glass-card { background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: 20px; padding: 1.5rem; }
         .metric-container { background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 20px; padding: 1.25rem; }
         .metric-value { font-size: 1.8rem; font-weight: 700; color: var(--text-primary); }
         .metric-label { font-size: 0.7rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.1em; }
         .public-banner { background: rgba(48, 209, 88, 0.08); border: 1px solid rgba(48, 209, 88, 0.2); border-radius: 16px; padding: 1rem 1.25rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; }
+        .chart-container { width: 100%; overflow: hidden; position: relative; }
         @keyframes fadeInUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
         .animate-in { animation: fadeInUp 0.6s ease forwards; opacity: 0; }
-        @media (max-width: 768px) {
-            .metric-value { font-size: 1.2rem; }
-            .glass-card { padding: 1rem; }
-            .grid { grid-template-columns: repeat(2, 1fr) !important; }
-        }
+        @media (max-width: 768px) { .metric-value { font-size: 1.2rem; } .glass-card { padding: 1rem; } .grid { grid-template-columns: repeat(2, 1fr) !important; } }
     </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
@@ -41,42 +29,21 @@
                 <div class="text-sm" style="color: var(--text-secondary);">View-only mode</div>
             </div>
         </div>
-
         <h1 class="text-3xl md:text-4xl font-extrabold text-white tracking-tight mb-1 animate-in" style="letter-spacing: -0.03em;">{{ white_label.company_name }}</h1>
         <hr class="border-white/5 my-6">
-
         <div class="grid grid-cols-2 md:grid-cols-6 gap-3 md:gap-4 mb-6 animate-in" style="animation-delay: 0.2s;">
-            <div class="metric-container">
-                <div class="metric-label">Выручка</div>
-                <div class="metric-value">{{ "{:,.0f}".format(metrics.total_revenue) }} ₽</div>
-            </div>
-            <div class="metric-container">
-                <div class="metric-label">Пользователей</div>
-                <div class="metric-value">{{ "{:,}".format(metrics.total_users) }}</div>
-            </div>
-            <div class="metric-container">
-                <div class="metric-label">ARPU</div>
-                <div class="metric-value">{{ "{:,.0f}".format(metrics.arpu) }} ₽</div>
-            </div>
-            <div class="metric-container">
-                <div class="metric-label">AOV</div>
-                <div class="metric-value">{{ "{:,.0f}".format(metrics.aov) }} ₽</div>
-            </div>
-            <div class="metric-container">
-                <div class="metric-label">LTV</div>
-                <div class="metric-value">{{ "{:,.0f}".format(metrics.ltv) }} ₽</div>
-            </div>
-            <div class="metric-container">
-                <div class="metric-label">LTV / CAC</div>
-                <div class="metric-value" style="color: {% if metrics.ltv_cac_ratio > 3 %}var(--accent-green){% elif metrics.ltv_cac_ratio > 1 %}var(--accent-orange){% else %}var(--accent-red){% endif %}">{{ "{:.1f}".format(metrics.ltv_cac_ratio) }}x</div>
-            </div>
+            <div class="metric-container"><div class="metric-label">Выручка</div><div class="metric-value">{{ "{:,.0f}".format(metrics.total_revenue) }} ₽</div></div>
+            <div class="metric-container"><div class="metric-label">Пользователей</div><div class="metric-value">{{ "{:,}".format(metrics.total_users) }}</div></div>
+            <div class="metric-container"><div class="metric-label">ARPU</div><div class="metric-value">{{ "{:,.0f}".format(metrics.arpu) }} ₽</div></div>
+            <div class="metric-container"><div class="metric-label">AOV</div><div class="metric-value">{{ "{:,.0f}".format(metrics.aov) }} ₽</div></div>
+            <div class="metric-container"><div class="metric-label">LTV</div><div class="metric-value">{{ "{:,.0f}".format(metrics.ltv) }} ₽</div></div>
+            <div class="metric-container"><div class="metric-label">LTV / CAC</div><div class="metric-value" style="color: {% if metrics.ltv_cac_ratio > 3 %}var(--accent-green){% elif metrics.ltv_cac_ratio > 1 %}var(--accent-orange){% else %}var(--accent-red){% endif %}">{{ "{:.1f}".format(metrics.ltv_cac_ratio) }}x</div></div>
         </div>
-
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6 animate-in" style="animation-delay: 0.3s;">
-            <div class="glass-card">{{ charts.revenue | safe }}</div>
-            <div class="glass-card">{{ charts.arpu | safe }}</div>
+            <div class="glass-card chart-container" style="height: 250px;">{{ charts.revenue | safe }}</div>
+            <div class="glass-card chart-container" style="height: 250px;">{{ charts.arpu | safe }}</div>
         </div>
-        <div class="glass-card animate-in" style="animation-delay: 0.4s;">{{ charts.channel | safe }}</div>
+        <div class="glass-card animate-in chart-container" style="animation-delay: 0.4s; height: 300px;">{{ charts.channel | safe }}</div>
     </div>
 </body>
 </html>
