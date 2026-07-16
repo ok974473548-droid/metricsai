@@ -2,7 +2,7 @@
 {% block content %}
 <div class="mb-8 animate-in">
     <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">AI-инсайты</h1>
-    <p class="text-sm" style="color: var(--text-secondary);">Искусственный интеллект анализирует ваши метрики</p>
+    <p class="text-sm" style="color: var(--text-secondary);">GPT-4 анализирует ваши данные и отвечает на вопросы</p>
 </div>
 
 {% if not has_data %}
@@ -12,12 +12,42 @@
     <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
 </div>
 {% else %}
-<div class="animate-in delay-1">
+
+<!-- Natural Language Query -->
+<div class="glass-card animate-in delay-1 mb-6">
+    <div class="section-title">💬 Natural Language Query</div>
+    <p class="text-sm mb-4" style="color: var(--text-secondary);">Задайте вопрос на естественном языке — AI построит график</p>
+    <form hx-post="/ai-nlq" hx-target="#nlq-result" hx-swap="innerHTML" class="flex gap-3 flex-wrap">
+        <input type="text" name="query" placeholder="Например: покажи revenue по каналам за Q1" class="flex-1" style="min-width: 250px;">
+        <button type="submit" class="btn-primary">🚀 Сгенерировать</button>
+    </form>
+    <div id="nlq-result" class="mt-4"></div>
+</div>
+
+<!-- AI Insights -->
+<div class="animate-in delay-2">
     <button class="btn-primary mb-6" hx-post="/ai-generate" hx-target="#ai-result" hx-indicator="#ai-loading">
-        <span style="margin-right: 0.5rem;">✨</span>Сгенерировать инсайты
+        <span style="margin-right: 0.5rem;">✨</span>Сгенерировать AI-инсайты
     </button>
-    <div id="ai-loading" class="htmx-indicator" style="color: var(--text-secondary);">⏳ Анализирую метрики...</div>
+    <div id="ai-loading" class="htmx-indicator" style="color: var(--text-secondary);">⏳ GPT-4 анализирует метрики...</div>
     <div id="ai-result"></div>
 </div>
+
+<!-- Anomaly Detection -->
+<div class="glass-card animate-in delay-3 mt-6">
+    <div class="section-title">🔍 Anomaly Detection (ML)</div>
+    <p class="text-sm mb-4" style="color: var(--text-secondary);">Isolation Forest автоматически находит аномалии в revenue</p>
+    {% if charts.get('anomalies') %}
+    <div class="chart-container" style="height: 250px;">
+        {{ charts.anomalies | safe }}
+    </div>
+    <div class="mt-3 text-xs" style="color: var(--text-tertiary);">
+        🔴 Красные ромбы — дни с аномальными значениями (outliers по 5% contamination)
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary);">Недостаточно данных для детекции аномалий (минимум 10 дней)</p>
+    {% endif %}
+</div>
+
 {% endif %}
 {% endblock %}
