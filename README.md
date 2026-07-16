@@ -1,7 +1,6 @@
 # MetricsAI — FastAPI + HTMX + Tailwind
 
-Production-ready analytics dashboard. No React, no Streamlit — pure Python + HTML.
-
+Production-ready analytics dashboard.
 ## Stack
 - **FastAPI** — backend API
 - **Jinja2** — HTML templates
@@ -22,9 +21,3 @@ Open http://localhost:8000
 ```bash
 uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
-
-## Why this stack?
-- FastAPI = best Python backend
-- HTMX = dynamic web apps without writing JS
-- Tailwind = any design you want
-- Works on any Python version, no compilation needed
