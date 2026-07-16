@@ -9,13 +9,11 @@
 <div class="glass-card text-center py-20 animate-in delay-1">
     <div class="text-5xl mb-6">🖨️</div>
     <p class="text-lg mb-2" style="color: var(--text-secondary);">Нет данных</p>
-    <p class="text-sm mb-8" style="color: var(--text-tertiary);">Загрузите демо-данные, чтобы экспортировать отчёт</p>
     <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
 </div>
 {% else %}
 
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <!-- PNG Export -->
     <div class="glass-card animate-in delay-1">
         <div class="flex items-center gap-3 mb-4">
             <div class="text-2xl">🖼️</div>
@@ -33,8 +31,6 @@
             <button type="submit" class="btn-primary w-full">📥 Скачать PNG</button>
         </form>
     </div>
-
-    <!-- PDF Export -->
     <div class="glass-card animate-in delay-2">
         <div class="flex items-center gap-3 mb-4">
             <div class="text-2xl">📄</div>
@@ -43,13 +39,10 @@
                 <div class="text-xs" style="color: var(--text-tertiary);">Полный отчёт в PDF</div>
             </div>
         </div>
-        <p class="text-sm mb-4" style="color: var(--text-secondary);">Содержит KPI, графики и таблицы. Готов к печати.</p>
         <form action="/export/pdf" method="post">
             <button type="submit" class="btn-primary w-full">📥 Скачать PDF</button>
         </form>
     </div>
-
-    <!-- PPTX Export -->
     <div class="glass-card animate-in delay-3">
         <div class="flex items-center gap-3 mb-4">
             <div class="text-2xl">📊</div>
@@ -58,19 +51,17 @@
                 <div class="text-xs" style="color: var(--text-tertiary);">Презентация для совещания</div>
             </div>
         </div>
-        <p class="text-sm mb-4" style="color: var(--text-secondary);">Готовая презентация с метриками и графиками.</p>
         <form action="/export/pptx" method="post">
             <button type="submit" class="btn-primary w-full">📥 Скачать PPTX</button>
         </form>
     </div>
 </div>
 
-<!-- Live Simulation -->
 <div class="glass-card animate-in delay-4">
     <div class="flex items-center justify-between mb-4">
         <div>
             <div class="section-title">⚡ Live Simulation</div>
-            <p class="text-sm" style="color: var(--text-secondary);">Добавьте данные в реальном времени и увидите обновление через WebSocket</p>
+            <p class="text-sm" style="color: var(--text-secondary);">Добавьте данные в реальном времени</p>
         </div>
         <div id="ws-status" class="live-indicator" style="display: none;">
             <span class="live-dot"></span> CONNECTING
@@ -80,13 +71,12 @@
         <span style="margin-right: 0.5rem;">🔄</span>Симулировать live-данные
     </button>
     <div class="mt-4 text-xs" style="color: var(--text-tertiary);">
-        WebSocket подключение: <span id="ws-detail" style="color: var(--text-secondary);">инициализация...</span>
+        WebSocket: <span id="ws-detail" style="color: var(--text-secondary);">инициализация...</span>
     </div>
 </div>
 
 <script>
 window.addEventListener('metricsUpdate', function(e) {
-    console.log('Live update received:', e.detail);
     const detail = document.getElementById('ws-detail');
     if (detail) {
         detail.innerHTML = 'Последнее обновление: ' + new Date().toLocaleTimeString() + 
