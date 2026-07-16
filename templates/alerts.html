@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="mb-8 animate-in">
+    <h1 class="text-4xl font-extrabold text-white tracking-tight mb-2" style="letter-spacing: -0.03em;">Smart Alerts</h1>
+    <p class="text-sm" style="color: var(--text-secondary);">ML-определение порогов + Webhook уведомления</p>
+</div>
+
+{% if not has_data %}
+<div class="glass-card text-center py-20 animate-in delay-1">
+    <div class="text-5xl mb-6">🚨</div>
+    <p class="text-lg mb-2" style="color: var(--text-secondary);">Нет данных</p>
+    <button class="btn-primary" hx-post="/load-sample" hx-target="body">🎲 Загрузить демо-данные</button>
+</div>
+{% else %}
+
+<!-- Create Alert -->
+<div class="glass-card animate-in delay-1 mb-6">
+    <div class="section-title">➕ Создать алерт</div>
+    <form hx-post="/alerts/create" hx-target="#alert-result" hx-swap="innerHTML" class="space-y-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+                <label class="block text-sm mb-2" style="color: var(--text-secondary);">Метрика</label>
+                <select name="metric" class="w-full">
+                    <option value="total_revenue">Revenue</option>
+                    <option value="arpu">ARPU</option>
+                    <option value="ltv_cac_ratio">LTV/CAC</option>
+                    <option value="d30_retention">D30 Retention</option>
+                    <option value="overall_conversion">Conversion</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm mb-2" style="color: var(--text-secondary);">Условие</label>
+                <select name="threshold_type" class="w-full">
+                    <option value="above">Выше чем</option>
+                    <option value="below">Ниже чем</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm mb-2" style="color: var(--text-secondary);">Пороговое значение</label>
+                <input type="number" name="threshold_value" step="0.01" placeholder="1000" required>
+            </div>
+        </div>
+        <div>
+            <label class="block text-sm mb-2" style="color: var(--text-secondary);">Webhook URL (Slack/Discord/Telegram)</label>
+            <input type="url" name="webhook_url" placeholder="https://hooks.slack.com/services/..." class="w-full">
+            <div class="text-xs mt-1" style="color: var(--text-tertiary);">Опционально. Поддерживает Slack Incoming Webhooks, Discord, Telegram Bot API</div>
+        </div>
+        <button type="submit" class="btn-primary">🚨 Создать алерт</button>
+    </form>
+    <div id="alert-result" class="mt-4"></div>
+</div>
+
+<!-- Check Alerts -->
+<div class="glass-card animate-in delay-2 mb-6">
+    <div class="flex items-center justify-between mb-4">
+        <div class="section-title">🔍 Проверить алерты</div>
+        <button class="btn-secondary" hx-post="/alerts/check" hx-target="#check-result">▶️ Запустить проверку</button>
+    </div>
+    <div id="check-result"></div>
+</div>
+
+<!-- Active Alerts -->
+<div class="glass-card animate-in delay-3">
+    <div class="section-title">📋 Активные алерты</div>
+    {% if alerts %}
+    <div class="overflow-x-auto">
+        <table style="width: 100%; border-collapse: collapse; font-size: 0.85rem;">
+            <thead>
+                <tr style="border-bottom: 1px solid var(--glass-border);">
+                    <th style="text-align: left; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">Метрика</th>
+                    <th style="text-align: left; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">Условие</th>
+                    <th style="text-align: right; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">Порог</th>
+                    <th style="text-align: left; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">Webhook</th>
+                    <th style="text-align: left; padding: 0.75rem; color: var(--text-secondary); font-weight: 600;">Статус</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alert in alerts %}
+                <tr style="border-bottom: 1px solid rgba(255,255,255,0.03);">
+                    <td style="padding: 0.75rem; color: var(--text-primary); font-weight: 500;">{{ alert.metric }}</td>
+                    <td style="padding: 0.75rem; color: var(--text-primary);">{{ alert.threshold_type }}</td>
+                    <td style="text-align: right; padding: 0.75rem; color: var(--text-primary); font-weight: 600;">{{ alert.threshold_value }}</td>
+                    <td style="padding: 0.75rem; color: var(--text-secondary); font-size: 0.75rem; font-family: monospace;">{{ alert.webhook_url[:30] + "..." if alert.webhook_url else "—" }}</td>
+                    <td style="padding: 0.75rem;">
+                        <span style="padding: 0.25rem 0.5rem; border-radius: 20px; font-size: 0.7rem; font-weight: 600; background: rgba(52,211,153,0.15); color: #34D399; border: 1px solid rgba(52,211,153,0.3);">Active</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color: var(--text-secondary);">Нет активных алертов. Создайте первый выше ↑</p>
+    {% endif %}
+</div>
+
+{% endif %}
+{% endblock %}
